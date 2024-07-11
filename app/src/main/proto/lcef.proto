@@ -1,0 +1,26 @@
+syntax = "proto3";
+package transactions;
+
+option java_multiple_files = false;
+option java_package = "fr.theskyblockman.lifechest.transactions";
+
+message FileMetadata {
+  optional string name = 1;
+  int64 lastModified = 2;
+  string mimeType = 3;
+  int64 size = 4;
+  int64 creationDate = 5;
+}
+
+message Lcef {
+  bytes keyHash = 1;
+  bytes iv = 2;
+  string unlockMethod = 3;
+  map<string, bytes> additionalUnlockData = 4;
+  bytes encryptedFileName = 5;
+  string fileID = 6;
+  string vaultID = 7;
+  FileMetadata fileMetadata = 8;
+  bytes thumbnail = 9;
+  bytes thumbnailIv = 10;
+}
