@@ -25,15 +25,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.database.getLongOrNull
-import androidx.core.database.getStringOrNull
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -46,6 +47,7 @@ import fr.theskyblockman.lifechest.transactions.LcefOuterClass.FileMetadata
 import fr.theskyblockman.lifechest.ui.theme.AppTheme
 import fr.theskyblockman.lifechest.vault.Crypto
 import fr.theskyblockman.lifechest.vault.DirectoryNode
+import fr.theskyblockman.lifechest.vault.EncryptedContentProvider
 import fr.theskyblockman.lifechest.vault.EncryptedFile
 import fr.theskyblockman.lifechest.vault.FileNode
 import fr.theskyblockman.lifechest.vault.TreeNode
@@ -64,34 +66,116 @@ import kotlinx.datetime.Instant
 import kotlinx.serialization.json.Json
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.io.IOException
 import java.io.InputStream
 import javax.crypto.spec.SecretKeySpec
 
-class ExplorerActivity : FragmentActivity() {
-    companion object {
-        lateinit var vault: Vault
-        val fileListTransactions: MutableMap<String, List<String>> = mutableMapOf()
-        val lcefUrisTransactions: MutableMap<String, List<Uri>> = mutableMapOf()
-        var bypassChestClosure = false
+class ExplorerViewModel : ViewModel() {
+    private val vaultState: MutableStateFlow<Vault?> = MutableStateFlow(null)
+    val vault = this.vaultState.asStateFlow()
+
+    private val toImportState: MutableStateFlow<String?> = MutableStateFlow(null)
+    val toImport = this.toImportState.asStateFlow()
+
+    private val bypassChestClosureState: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    var bypassChestClosure = this.bypassChestClosureState.asStateFlow()
+
+    fun setBypassChestClosure(bypass: Boolean) {
+        bypassChestClosureState.update {
+            bypass
+        }
     }
 
+    private val readerFilesState = MutableStateFlow<List<String>>(emptyList())
+    val readerFiles = this.readerFilesState.asStateFlow()
+
+    fun setReaderFiles(files: List<String>) {
+        readerFilesState.update {
+            files
+        }
+    }
+
+    fun loadVault(rawVault: String, key: SecretKeySpec) {
+        viewModelScope.launch(Dispatchers.IO) {
+            vaultState.update {
+                Json.decodeFromString(rawVault)
+            }
+            vaultState.value!!.key = key
+            EncryptedContentProvider.vault = vaultState.value!!
+            currentSortMethod.update {
+                vaultState.value!!.sortMethod
+            }
+        }
+    }
+
+    fun reloadVault() {
+        if (vaultState.value == null) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val key = vaultState.value!!.key
+            vaultState.update {
+                Vault.loadVault(vaultState.value!!.id)
+            }
+            vaultState.value!!.key = key
+            EncryptedContentProvider.vault = vaultState.value!!
+            currentSortMethod.update {
+                vaultState.value!!.sortMethod
+            }
+        }
+    }
+
+    suspend fun reloadFileTree() {
+        if (vaultState.value == null) {
+            Log.d("ExplorerViewModel", "Vault is null")
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val newVault = vaultState.value!!
+            newVault.loadFileTree()
+            vaultState.update {
+                newVault
+            }
+        }.join()
+    }
+
+    fun setToImport(toImport: String?) {
+        toImportState.update {
+            toImport
+        }
+    }
+
+    private val currentSortMethod = MutableStateFlow(SortMethod.Name)
+    val currentSortMethodState = this.currentSortMethod.asStateFlow()
+
+    fun setSortMethod(method: SortMethod) {
+        currentSortMethod.update {
+            method
+        }
+    }
+
+    fun setLcefUrisTransaction(urisTransaction: MutableList<Uri>?) {
+        lcefUrisTransaction.update {
+            urisTransaction
+        }
+    }
+
+    private val lcefUrisTransaction: MutableStateFlow<MutableList<Uri>?> = MutableStateFlow(null)
+    val lcefUrisTransactionState = this.lcefUrisTransaction.asStateFlow()
+}
+
+class ExplorerActivity : FragmentActivity() {
     private lateinit var launcher: ActivityResultLauncher<Array<String>>
     private var importResultCompleter: CompletableDeferred<List<Uri>>? = null
     var currentNodeToExport: TreeNode? = null
     lateinit var exporter: ActivityResultLauncher<String>
+    private lateinit var explorerViewModel: ExplorerViewModel
 
     @Suppress("SameParameterValue")
     private fun createNotificationChannel(channelId: String) {
-        // Create the NotificationChannel, but only on API 26+ because
-        // the NotificationChannel class is not in the Support Library.
         val name = getString(R.string.channel_name)
         val descriptionText = getString(R.string.channel_description)
         val importance = NotificationManager.IMPORTANCE_DEFAULT
         val channel = NotificationChannel(channelId, name, importance).apply {
             description = descriptionText
         }
-        // Register the channel with the system.
         val notificationManager: NotificationManager =
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(channel)
@@ -120,26 +204,33 @@ class ExplorerActivity : FragmentActivity() {
             return
         }
 
-        vault = Json.decodeFromString(passedData.getString("vault")!!)
-
-        vault.key =
-            SecretKeySpec(passedData.getByteArray("key")!!, Crypto.DEFAULT_CIPHER_NAME)
-
-        vault.loadFileTree()
-
         val contract = ActivityResultContracts.OpenMultipleDocuments()
         launcher = registerForActivityResult(contract) {
             importResultCompleter?.complete(it)
         }
 
-        val filter = IntentFilter()
-        filter.addAction("fr.theskyblockman.close_chest")
+        val filter = IntentFilter("fr.theskyblockman.lifechest.close_chest")
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(broadcastReceiver, filter, RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(broadcastReceiver, filter)
         }
+
+        val toImport = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            passedData.getParcelable("to-import", Uri::class.java)?.toString()
+        } else {
+            @Suppress("DEPRECATION")
+            passedData.getParcelable<Uri?>("to-import")?.toString()
+        }
+
+        val viewModel: ExplorerViewModel by viewModels()
+        viewModel.loadVault(
+            passedData.getString("vault")!!,
+            SecretKeySpec(passedData.getByteArray("key")!!, Crypto.DEFAULT_CIPHER_NAME)
+        )
+        viewModel.setToImport(toImport)
+        explorerViewModel = viewModel
 
         exporter =
             registerForActivityResult(ActivityResultContracts.CreateDocument(LcefManager.MIME_TYPE)) { uri ->
@@ -153,7 +244,7 @@ class ExplorerActivity : FragmentActivity() {
                         contentResolver.openOutputStream(uri)!!.use { outputStream ->
                             outputStream.write(
                                 LcefManager.createLcefHeader(
-                                    vault,
+                                    viewModel.vault.value!!,
                                     currentNodeToExport as FileNode
                                 )
                             )
@@ -162,16 +253,9 @@ class ExplorerActivity : FragmentActivity() {
                     }
             }
 
-        val toImport = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            passedData.getParcelable("to-import", Uri::class.java)?.toString()
-        } else {
-            @Suppress("DEPRECATION")
-            passedData.getParcelable<Uri?>("to-import")?.toString()
-        }
-
         enableEdgeToEdge()
         setContent {
-            ExplorerActivityNav(this, toImport)
+            ExplorerActivityNav(this, viewModel)
         }
     }
 
@@ -179,7 +263,7 @@ class ExplorerActivity : FragmentActivity() {
 
     private inner class CloseVault : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            NotificationManagerCompat.from(this@ExplorerActivity).cancel(0)
+            NotificationManagerCompat.from(context ?: this@ExplorerActivity).cancel(0)
             finish()
         }
     }
@@ -221,21 +305,23 @@ class ExplorerActivity : FragmentActivity() {
     override fun onPause() {
         super.onPause()
 
-        if (!bypassChestClosure && !isFinishing) {
-            vault.onSetBackground(this)
+        if (!explorerViewModel.bypassChestClosure.value && !isFinishing) {
+            explorerViewModel.vault.value!!.onSetBackground(this)
         }
     }
 
     override fun onResume() {
         super.onResume()
-        if (!bypassChestClosure) {
-            vault.onBroughtBack(this)
+        if (!explorerViewModel.bypassChestClosure.value) {
+            explorerViewModel.vault.value!!.onBroughtBack(this)
+        } else {
+            explorerViewModel.setBypassChestClosure(false)
         }
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         NotificationManagerCompat.from(this).cancel(0)
+        super.onDestroy()
         unregisterReceiver(broadcastReceiver)
     }
 }
@@ -256,7 +342,7 @@ class FileImportViewModel(private val application: Application) : AndroidViewMod
         vault: Vault,
         currentPath: String,
         onLcefFiles: (List<Uri>) -> Unit = {},
-        onEnd: (newFileTree: DirectoryNode) -> Unit = {}
+        onEnd: suspend (newFileTree: DirectoryNode) -> Unit = {}
     ) {
         lastResultCompleter.invokeOnCompletion {
             viewModelScope.launch {
@@ -338,26 +424,41 @@ class FileImportViewModel(private val application: Application) : AndroidViewMod
         }
 
         queryResult.use {
-            val lastModified =
-                queryResult.getLongOrNull(queryResult.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED))
-                    ?: System.currentTimeMillis()
-            val mimeType =
-                queryResult.getStringOrNull(
-                    queryResult.getColumnIndex(
-                        DocumentsContract.Document.COLUMN_MIME_TYPE
-                    )
+            val lastModifiedColumn =
+                queryResult.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+
+            var lastModified: Long = System.currentTimeMillis()
+            if (lastModifiedColumn != -1) {
+                lastModified =
+                    queryResult.getLong(lastModifiedColumn)
+            }
+
+            val mimeTypeColumn =
+                queryResult.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
+
+            val mimeType = if (mimeTypeColumn != -1) {
+                queryResult.getString(
+                    mimeTypeColumn
                 )
+            } else {
+                application.contentResolver.getType(file) ?: "*/*"
+            }
+
             val name =
                 queryResult.getString(
                     queryResult.getColumnIndexOrThrow(
                         DocumentsContract.Document.COLUMN_DISPLAY_NAME
                     )
                 )
+
             val size =
                 queryResult.getLong(queryResult.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_SIZE))
 
-            val creationDate =
-                queryResult.getLongOrNull(queryResult.getColumnIndex(MediaColumns.DATE_ADDED)) ?: 0L
+            val creationDateColumn = queryResult.getColumnIndex(MediaColumns.DATE_ADDED)
+            var creationDate = 0L
+            if (creationDateColumn != -1) {
+                creationDate = queryResult.getLong(creationDateColumn)
+            }
 
             return FileMetadata.newBuilder()
                 .setName(name)
@@ -377,9 +478,8 @@ class FileImportViewModel(private val application: Application) : AndroidViewMod
                 Size(256, 256),
                 null
             )
-
             ByteArrayOutputStream().use { bos ->
-                thumbnail.compress(Bitmap.CompressFormat.JPEG, 80, bos)
+                thumbnail.compress(Bitmap.CompressFormat.PNG, 100, bos)
                 thumbnail.recycle()
                 ByteArrayInputStream(bos.toByteArray()).use { bis ->
                     return Crypto.Encrypt.inputStream(
@@ -389,7 +489,7 @@ class FileImportViewModel(private val application: Application) : AndroidViewMod
                     )
                 }
             }
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             Log.i(
                 "FileImport.ThumbnailCreation",
                 "Failed to create thumbnail, probably unsupported type"
@@ -437,102 +537,72 @@ class FileImportViewModel(private val application: Application) : AndroidViewMod
 }
 
 @Composable
-fun ExplorerActivityNav(activity: ExplorerActivity, defaultToImport: String?) {
+fun ExplorerActivityNav(activity: ExplorerActivity, viewModel: ExplorerViewModel) {
     val navController = rememberNavController()
-    var toImportUpdated: String? = remember {
-        defaultToImport
-    }
+    val vault by viewModel.vault.collectAsState()
 
     AppTheme {
-        NavHost(navController, startDestination = "explorer/{fileId}?toImport={toImport}") {
+        NavHost(navController, startDestination = "explorer/{fileId}") {
             // path should be URL encoded
             composable(
-                "explorer/{fileId}?toImport={toImport}", arguments = listOf(navArgument(
+                "explorer/{fileId}", arguments = listOf(navArgument(
                     "fileId"
-                ) { type = NavType.StringType },
-                    navArgument(
-                        "toImport"
-                    ) {
-                        nullable = true
-                        type = NavType.StringType
-                        defaultValue = null
-                    })
+                ) { type = NavType.StringType })
             ) { entry ->
                 val rawFileId = entry.arguments?.getString("fileId")
                 val fileId =
-                    rawFileId ?: ExplorerActivity.vault.fileTree!!.id
+                    rawFileId ?: vault!!.fileTree?.id
 
-                var rawToImport = entry.arguments?.getString("toImport")
-
-                if (rawFileId == null) {
-                    rawToImport = toImportUpdated
-                    toImportUpdated = null
-                }
-
-                val toImport =
-                    if (rawToImport == null) null else Uri.parse(rawToImport)
+                Log.d("Explorer", "File ID = $fileId")
 
                 Explorer(
                     navController,
-                    currentFileId = fileId,
+                    baseFileId = fileId,
                     activity = activity,
-                    toImport = toImport
+                    explorerViewModel = viewModel
                 )
             }
 
             composable(
-                "reader/{fileId}?transactionId={transactionId}",
+                "reader/{fileId}",
                 arguments = listOf(
-                    navArgument("fileId") { type = NavType.StringType },
-                    navArgument("transactionId") {
-                        type = NavType.StringType
-                        defaultValue = null
-                        nullable = true
-                    },
+                    navArgument("fileId") { type = NavType.StringType }
                 )
             ) { entry ->
                 val fileID = entry.arguments?.getString("fileId")!!
-                val dir = ExplorerActivity.vault.fileTree!!.goToParentOf(fileID)!!
-                val transactionId = entry.arguments?.getString("transactionId")
-
-                val files: List<TreeNode> = if (transactionId != null) {
-                    ExplorerActivity.fileListTransactions[transactionId]!!.map { curId ->
-                        dir.children.first { it.id == curId }
-                    }
-                } else {
-                    dir.children
+                val dir = vault!!.fileTree!!.goToParentOf(fileID)!!
+                val readerFiles by viewModel.readerFiles.collectAsState()
+                val files = readerFiles.map { curId ->
+                    dir.children.first { it.id == curId }
                 }
 
                 FileReader(
                     files = files,
                     currentFileId = fileID,
                     activity = activity,
-                    navController
+                    explorerViewModel = viewModel,
+                    navController = navController
                 )
             }
 
             composable(
-                "import-lcef/{location}/{transactionId}",
+                "import-lcef/{location}",
                 arguments = listOf(
                     navArgument("location") {
-                        type = NavType.StringType
-                    },
-                    navArgument("transactionId") {
                         type = NavType.StringType
                     },
                 )
             ) { entry ->
                 val location =
-                    entry.arguments?.getString("location") ?: ExplorerActivity.vault.fileTree!!.id
-                val transactionId = entry.arguments?.getString("transactionId")
+                    entry.arguments?.getString("location") ?: vault!!.fileTree!!.id
 
-                val files = ExplorerActivity.lcefUrisTransactions[transactionId] ?: emptyList()
+                val files by viewModel.lcefUrisTransactionState.collectAsState()
 
                 LcefUnlockPage(
                     navController = navController,
-                    files = files,
+                    files = files ?: listOf(),
                     location = location,
-                    transactionId = transactionId
+                    explorerViewModel = viewModel
                 )
             }
         }

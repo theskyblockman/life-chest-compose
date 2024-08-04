@@ -1,5 +1,6 @@
 package fr.theskyblockman.lifechest.explorer.file_readers
 
+import android.content.Context
 import android.view.View
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
@@ -13,9 +14,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import fr.theskyblockman.lifechest.explorer.ExplorerViewModel
 import fr.theskyblockman.lifechest.vault.EncryptedContentProvider
 import fr.theskyblockman.lifechest.vault.FileNode
 
@@ -38,14 +41,13 @@ class VideoReader(override val node: FileNode) : FileReader {
                     .Builder(context)
                     .build()
                     .apply {
-                        setMediaItems(
-                            listOf(
-                                MediaItem.fromUri(
-                                    EncryptedContentProvider.getUriFromFile(node)
-                                )
+                        setMediaItem(
+                            MediaItem.fromUri(
+                                EncryptedContentProvider.getUriFromFile(node)
                             )
                         )
                         prepare()
+                        repeatMode = Player.REPEAT_MODE_ONE
                         play()
                     }
                 playerView = playerView ?: PlayerView(context).apply {
@@ -61,7 +63,7 @@ class VideoReader(override val node: FileNode) : FileReader {
         }
     }
 
-    override suspend fun load() { }
+    override suspend fun load(context: Context, explorerViewModel: ExplorerViewModel) {}
 
     override fun unload() {
         playerView?.visibility = View.GONE

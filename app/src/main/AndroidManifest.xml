@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="false"
@@ -20,7 +20,7 @@
             android:name=".explorer.ExplorerActivity"
             android:exported="false"
             android:label="@string/title_activity_explorer"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:configChanges="colorMode|density|fontScale|fontWeightAdjustment|grammaticalGender|keyboard|keyboardHidden|layoutDirection|locale|mcc|mnc|navigation|orientation|screenLayout|screenSize|smallestScreenSize|touchscreen|uiMode"
             android:theme="@style/AppTheme" />
         <activity
             android:name=".onboarding.OnboardingActivity"
@@ -44,20 +44,13 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.EDIT" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <category android:name="android.intent.category.OPENABLE" />
-                <data android:scheme="content"/>
-                <data android:mimeType="application/vnd.fr.theskyblockman.lifechest.lcef"/>
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <action android:name="android.intent.action.EDIT" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <category android:name="android.intent.category.OPENABLE" />
-                <data android:scheme="content"/>
-                <data android:mimeType="application/octet-stream"/>
+
+                <data android:scheme="content" />
+                <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
 
@@ -71,8 +64,8 @@
 
         <provider
             android:authorities="@string/uri_authority"
-            android:name="fr.theskyblockman.lifechest.vault.EncryptedContentProvider"
+            android:name=".vault.EncryptedContentProvider"
             android:grantUriPermissions="true"
-            android:exported="false"/>
+            android:exported="false" />
     </application>
 </manifest>

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FabPosition
@@ -47,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -72,18 +74,26 @@ import kotlinx.coroutines.launch
 fun Explorer(
     navController: NavController,
     viewModel: FileImportViewModel = viewModel(),
-    currentFileId: String,
+    baseFileId: String?,
     defaultIsGridView: Boolean = true,
     activity: ExplorerActivity,
-    toImport: Uri? = null,
+    explorerViewModel: ExplorerViewModel,
 ) {
+    val toImport by explorerViewModel.toImport.collectAsState()
+    val vault by explorerViewModel.vault.collectAsState()
+    var currentFileId: String? = remember {
+        baseFileId ?: vault?.fileTree?.id
+    }
+    var vaultLoaded by remember {
+        mutableStateOf(vault!!.fileTree != null && currentFileId != null)
+    }
+    Log.d("Vault", "VaultLoaded: $vaultLoaded")
+
     var current by remember {
-        mutableStateOf(ExplorerActivity.vault.fileTree!!.goTo(currentFileId))
+        mutableStateOf(vault?.fileTree?.goTo(currentFileId ?: ""))
     }
 
-    var currentSortMethod by remember {
-        mutableStateOf(ExplorerActivity.vault.sortMethod)
-    }
+    val currentSortMethod by explorerViewModel.currentSortMethodState.collectAsState()
 
     val items = remember(current) {
         mutableStateListOf<TreeNode>().apply {
@@ -95,18 +105,37 @@ fun Explorer(
         }
     }
 
-
     fun updateCurrent(newNode: TreeNode?) {
         current = newNode
         items.apply {
             items.clear()
             addAll(
                 if (current?.children != null)
-                    currentSortMethod.sortItems(current!!.children)
+                    explorerViewModel.currentSortMethodState.value.sortItems(current!!.children)
                 else
                     emptyList()
             )
         }
+    }
+
+    LaunchedEffect(vault, vaultLoaded) {
+        if (!vaultLoaded) {
+            explorerViewModel.reloadFileTree()
+            currentFileId = vault!!.fileTree!!.id
+            updateCurrent(vault!!.fileTree!!.goTo(currentFileId!!))
+            vaultLoaded = true
+        }
+    }
+    if (!vaultLoaded) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            CircularProgressIndicator()
+        }
+
+        return
     }
 
     var isGridView by remember { mutableStateOf(defaultIsGridView) }
@@ -122,7 +151,9 @@ fun Explorer(
         if (selectedElements.isNotEmpty()) {
             selectedElements = emptySet()
         } else {
-            if (ExplorerActivity.vault.fileTree!!.id == currentFileId) {
+            if (vault!!.fileTree!!.id == currentFileId
+                || currentFileId == null
+            ) {
                 activity.finish()
             } else {
                 navController.navigateUp()
@@ -133,6 +164,7 @@ fun Explorer(
     var deleteDialogExpanded by remember {
         mutableStateOf(false)
     }
+
     var toDelete = remember {
         listOf<TreeNode>()
     }
@@ -151,7 +183,9 @@ fun Explorer(
                 fileImportsState = uiState,
                 isGridView = isGridView,
                 onNavigationClick = {
-                    if (ExplorerActivity.vault.fileTree!!.id == currentFileId) {
+                    if (vault!!.fileTree!!.id == currentFileId
+                        || currentFileId == null
+                    ) {
                         activity.finish()
                     } else {
                         navController.navigateUp()
@@ -175,9 +209,9 @@ fun Explorer(
                     createDirectoryDialogExpanded = true
                 },
                 setSortMethod = {
-                    currentSortMethod = it
-                    ExplorerActivity.vault.sortMethod = it
-                    ExplorerActivity.vault.writeFileTree()
+                    explorerViewModel.setSortMethod(it)
+                    vault!!.sortMethod = it
+                    vault!!.writeFileTree()
                     updateCurrent(current)
                 }
             )
@@ -185,16 +219,17 @@ fun Explorer(
         floatingActionButton = {
             if (toImport == null) {
                 FloatingActionButton(onClick = {
-                    ExplorerActivity.bypassChestClosure = true
+                    explorerViewModel.setBypassChestClosure(true)
                     viewModel.moveFiles(
                         lastResultCompleter = activity.pickFiles(),
-                        vault = ExplorerActivity.vault,
-                        currentPath = currentFileId,
+                        vault = vault!!,
+                        currentPath = currentFileId ?: vault!!.fileTree!!.id,
                         onLcefFiles = {
                             if (it.isEmpty()) return@moveFiles
 
-                            val transactionId = Crypto.createID()
-                            ExplorerActivity.lcefUrisTransactions[transactionId] = it
+                            explorerViewModel.setLcefUrisTransaction(
+                                it.toMutableList()
+                            )
 
                             viewModel.viewModelScope.launch {
                                 val result = snackbarHostState.showSnackbar(
@@ -210,18 +245,18 @@ fun Explorer(
                                 )
                                 when (result) {
                                     SnackbarResult.ActionPerformed -> {
-                                        navController.navigate("import-lcef/$currentFileId/$transactionId")
+                                        navController.navigate("import-lcef/${currentFileId ?: vault!!.fileTree!!.id}")
                                     }
 
                                     SnackbarResult.Dismissed -> {
-                                        ExplorerActivity.lcefUrisTransactions.remove(transactionId)
+                                        explorerViewModel.setLcefUrisTransaction(null)
                                     }
                                 }
                             }
                         }
                     ) {
-                        ExplorerActivity.bypassChestClosure = false
-                        updateCurrent(it.goTo(currentFileId))
+                        explorerViewModel.setBypassChestClosure(false)
+                        updateCurrent(it.goTo(currentFileId ?: vault!!.fileTree!!.id))
                         selectedElements = emptySet()
                     }
                 }) {
@@ -233,11 +268,12 @@ fun Explorer(
                 }
                 if (isImporterExpanded) {
                     Importer(
-                        currentFileId,
-                        toImport,
+                        currentFileId ?: vault!!.fileTree!!.id,
+                        Uri.parse(toImport),
                         viewModel,
                         snackbarHostState,
-                        activity
+                        activity,
+                        explorerViewModel = explorerViewModel
                     ) { isImporterExpanded = false }
                 }
                 ExtendedFloatingActionButton(text = {
@@ -290,14 +326,16 @@ fun Explorer(
                             TextButton(
                                 onClick = {
                                     val newDir =
-                                        ExplorerActivity.vault.fileTree!!.goTo(currentFileId)!!
+                                        vault!!.fileTree!!.goTo(
+                                            currentFileId ?: vault!!.fileTree!!.id
+                                        )!!
                                     for (element in selectedElements) {
                                         newDir.children.remove(newDir.children.first { it.id == element }
                                             .also {
                                                 it.delete()
                                             })
                                     }
-                                    ExplorerActivity.vault.writeFileTree()
+                                    vault!!.writeFileTree()
                                     updateCurrent(newDir)
                                     selectedElements = emptySet()
 
@@ -372,7 +410,9 @@ fun Explorer(
                                 onClick = {
                                     createDirectoryDialogExpanded = false
                                     val newDir =
-                                        ExplorerActivity.vault.fileTree!!.goTo(currentFileId)!!
+                                        vault!!.fileTree!!.goTo(
+                                            currentFileId ?: vault!!.fileTree!!.id
+                                        )!!
                                     newDir.children.add(
                                         DirectoryNode(
                                             children = mutableListOf(),
@@ -380,7 +420,7 @@ fun Explorer(
                                             id = Crypto.createID()
                                         )
                                     )
-                                    ExplorerActivity.vault.writeFileTree()
+                                    vault!!.writeFileTree()
                                     updateCurrent(newDir)
                                     selectedElements = emptySet()
                                 },
@@ -397,7 +437,7 @@ fun Explorer(
         when (current) {
             null -> {
                 Column(modifier = Modifier.padding(innerPadding)) {
-                    Text(text = "Not found \"${currentFileId}\"")
+                    Text(text = stringResource(R.string.not_found, currentFileId ?: ""))
                 }
             }
 
@@ -413,29 +453,18 @@ fun Explorer(
                     isGridView = isGridView,
                     innerPadding = innerPadding,
                     selectedElements = selectedElements,
+                    explorerViewModel = explorerViewModel,
                     onNodeTileClick = { node ->
                         if (selectedElements.isEmpty()) {
                             when (node) {
                                 is FileNode -> {
-                                    val transactionId = Crypto.createID()
-                                    ExplorerActivity.fileListTransactions[transactionId] =
-                                        items.map { it.id }
-                                    navController.navigate("reader/${node.id}?transactionId=$transactionId")
+                                    explorerViewModel.setReaderFiles(items.map { it.id })
+                                    navController.navigate("reader/${node.id}")
                                 }
 
                                 is DirectoryNode -> {
-                                    if (toImport != null) {
-                                        navController.navigate(
-                                            "explorer/${node.id}?toImport=${
-                                                Uri.encode(
-                                                    toImport.toString()
-                                                )
-                                            }"
-                                        )
-                                    } else {
-                                        Log.i("Explorer", "Navigating to ${node.name}")
-                                        navController.navigate("explorer/${node.id}")
-                                    }
+                                    Log.i("Explorer", "Navigating to ${node.name}")
+                                    navController.navigate("explorer/${node.id}")
                                 }
                             }
                         } else {
@@ -461,8 +490,11 @@ fun Explorer(
                         }
                     },
                     reloadFiles = {
-                        Log.i("Explorer", "Reloading files")
-                        updateCurrent(ExplorerActivity.vault.fileTree!!.goTo(currentFileId))
+                        updateCurrent(
+                            vault!!.fileTree!!.goTo(
+                                currentFileId ?: vault!!.fileTree!!.id
+                            )
+                        )
                     }
                 )
 
@@ -477,6 +509,7 @@ fun ExplorerContent(
     isGridView: Boolean,
     innerPadding: PaddingValues,
     selectedElements: Set<String>,
+    explorerViewModel: ExplorerViewModel,
     onNodeTileClick: (TreeNode) -> Unit,
     onNodeTileLongClick: (TreeNode) -> Unit,
     setSelected: (TreeNode, isSelected: Boolean) -> Unit,
@@ -506,7 +539,8 @@ fun ExplorerContent(
                     setSelected = {
                         setSelected(node, it)
                     },
-                    reloadFiles = reloadFiles
+                    reloadFiles = reloadFiles,
+                    explorerViewModel = explorerViewModel
                 )
             }
         }
@@ -528,7 +562,8 @@ fun ExplorerContent(
                     setSelected = {
                         setSelected(node, it)
                     },
-                    reloadFiles = reloadFiles
+                    reloadFiles = reloadFiles,
+                    explorerViewModel = explorerViewModel
                 )
             }
         }

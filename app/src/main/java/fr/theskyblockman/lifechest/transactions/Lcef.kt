@@ -5,7 +5,6 @@ import android.net.Uri
 import android.util.Log
 import com.google.protobuf.ByteString
 import com.google.protobuf.kotlin.toByteString
-import fr.theskyblockman.lifechest.explorer.ExplorerActivity
 import fr.theskyblockman.lifechest.transactions.LcefOuterClass.FileMetadata
 import fr.theskyblockman.lifechest.transactions.LcefOuterClass.Lcef
 import fr.theskyblockman.lifechest.vault.Crypto
@@ -16,6 +15,8 @@ import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 object LcefManager {
@@ -26,12 +27,17 @@ object LcefManager {
     val LCEF_MAGIC = byteArrayOf(0x4C, 0x43, 0x45, 0x46) // LCEF
 
     private fun fileNodeToLcef(vault: Vault, node: FileNode): Lcef {
+        val encryptedFileNameIv = Crypto.createIV(Cipher.getInstance(Crypto.DEFAULT_CIPHER_NAME))
         return Lcef.newBuilder()
             .setKeyHash(Crypto.createHash(vault.key!!.encoded).toByteString())
             .setIv(node.attachedFile.iv.toByteString())
             .setUnlockMethod(vault.unlockMechanismType)
             .putAllAdditionalUnlockData(vault.additionalUnlockData.mapValues { it.value.toByteString() })
-            .setEncryptedFileName(Crypto.Encrypt.stringToBytes(node.name, vault.key!!).toByteString())
+            .setEncryptedFileNameIv(encryptedFileNameIv.iv.toByteString())
+            .setEncryptedFileName(
+                Crypto.Encrypt.stringToBytes(node.name, vault.key!!, encryptedFileNameIv)
+                    .toByteString()
+            )
             .setFileMetadata(
                 // We intentionally don't give the name
                 FileMetadata.newBuilder()
@@ -103,7 +109,7 @@ object LcefManager {
 
             val metadata = ByteArray(metadataSize)
 
-            if(inputStream.read(metadata) != metadataSize) {
+            if (inputStream.read(metadata) != metadataSize) {
                 Log.e("LcefParser", "EOF while reading metadata")
                 return null
             }
@@ -123,7 +129,7 @@ object LcefManager {
         outLocation: String,
         files: Map<Uri, SecretKeySpec>
     ) {
-        for(file in files) {
+        for (file in files) {
             context.contentResolver.openInputStream(file.key)!!.use { fis ->
                 val lcef = readLcefHeader(fis) ?: return
 
@@ -132,12 +138,13 @@ object LcefManager {
                     .setName(
                         Crypto.Decrypt.bytesToString(
                             lcef.encryptedFileName.toByteArray(),
-                            file.value
+                            file.value,
+                            IvParameterSpec(lcef.encryptedFileNameIv.toByteArray())
                         )
                     )
                     .build()
 
-                val thumbnail = if(lcef.thumbnail.toByteArray().isEmpty()) {
+                val thumbnail = if (lcef.thumbnail.toByteArray().isEmpty()) {
                     null
                 } else {
                     Crypto.Encrypt.inputStream(
@@ -147,11 +154,11 @@ object LcefManager {
                             lcef.thumbnailIv.toByteArray()
                         ),
                         Instant.fromEpochMilliseconds(metadata.lastModified),
-                        ExplorerActivity.vault
+                        vault
                     )
                 }
 
-                if(metadata == null) {
+                if (metadata == null) {
                     return
                 }
 

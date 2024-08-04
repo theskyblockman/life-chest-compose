@@ -14,17 +14,21 @@ import androidx.core.app.PendingIntentCompat
 import fr.theskyblockman.lifechest.R
 import fr.theskyblockman.lifechest.explorer.SortMethod
 import fr.theskyblockman.lifechest.unlock_mechanisms.UnlockMechanism
+import fr.theskyblockman.lifechest.vault.Crypto.DEFAULT_CIPHER_NAME
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
 import java.io.File
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
-
 
 data class Policy(
     var name: String = "",
@@ -44,7 +48,8 @@ data class Vault(
     var unlockMechanismType: String,
     var additionalUnlockData: MutableMap<String, ByteArray>,
     var versionCode: Long,
-    var sortMethod: SortMethod
+    var sortMethod: SortMethod,
+    var fileTreeIv: ByteArray = ByteArray(16),
 ) {
     companion object {
         const val ASK_TO_CLOSE_CHANNEL_ID = "fr.theskyblockman.lifechest/ask_to_close_chest"
@@ -52,6 +57,9 @@ data class Vault(
         lateinit var vaultsRoot: String
 
         suspend fun createFromPolicy(policy: Policy): Vault? {
+            val cipher = Cipher.getInstance(DEFAULT_CIPHER_NAME)
+            val fileTreeIV = Crypto.createIV(cipher).iv
+
             val newVault = Vault(
                 name = policy.name,
                 id = Crypto.createID(),
@@ -61,14 +69,19 @@ data class Vault(
                 unlockMechanismType = policy.unlockMechanismType,
                 encryptionLevel = policy.encryptionLevel,
                 versionCode = policy.versionCode,
-                sortMethod = SortMethod.Name
+                sortMethod = SortMethod.Name,
+                fileTreeIv = fileTreeIV,
             )
 
             val createdKey = policy.creator!!(newVault) ?: return null
 
             return withContext(Dispatchers.IO) {
                 newVault.key = createdKey
-                newVault.fileTree = DirectoryNode(children = mutableListOf(), id = Crypto.createID(), name = newVault.name)
+                newVault.fileTree = DirectoryNode(
+                    children = mutableListOf(),
+                    id = Crypto.createID(),
+                    name = newVault.name
+                )
                 newVault.vaultDirectory.mkdirs()
 
                 newVault.fileList.createNewFile()
@@ -77,13 +90,12 @@ data class Vault(
                 newVault.configFile.createNewFile()
                 newVault.writeConfig()
 
-                Crypto.createWitness(newVault)
                 return@withContext newVault
             }
         }
 
         private fun fromConfig(file: File): Vault {
-            if(!file.exists()) {
+            if (!file.exists()) {
                 throw FileSystemException(file, reason = "The config file does not exist")
             }
 
@@ -92,7 +104,7 @@ data class Vault(
 
         fun loadVaults(): List<Vault> {
             val vaultsDirectory = File(vaultsRoot, "vaults")
-            if(vaultsDirectory.mkdir()) {
+            if (vaultsDirectory.mkdir()) {
                 return emptyList()
             }
 
@@ -100,7 +112,7 @@ data class Vault(
 
             val vaults = mutableListOf<Vault>()
 
-            for(vaultFile in vaultFiles) {
+            for (vaultFile in vaultFiles) {
                 try {
                     vaults.add(fromConfig(File(vaultFile, ".config.json")))
                 } catch (e: Exception) {
@@ -141,6 +153,17 @@ data class Vault(
             return File(vaultDirectory, ".$fileListID")
         }
 
+    private val encryptedFileList: EncryptedFile
+        get() {
+            return EncryptedFile(
+                ".$fileListID",
+                id,
+                fileTreeIv,
+                Clock.System.now(),
+                Clock.System.now(),
+            )
+        }
+
     @Transient
     private val json = Json {
         ignoreUnknownKeys = true
@@ -150,21 +173,24 @@ data class Vault(
         classDiscriminator = "#class"
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
     fun loadFileTree(): DirectoryNode {
-        fileTree = json.decodeFromString(
-            Crypto.Decrypt.bytesToString(
-                fileList.readBytes(),
-                key!!
-            )
-        )
-        return fileTree!!
+        Crypto.Decrypt.fileToInputStream(
+            encryptedFileList,
+            this
+        ).use {
+            fileTree = json.decodeFromStream(it)
+
+            return fileTree!!
+        }
     }
 
     fun writeFileTree() {
         fileList.writeBytes(
             Crypto.Encrypt.stringToBytes(
                 json.encodeToString(fileTree!!),
-                key!!
+                key!!,
+                IvParameterSpec(fileTreeIv)
             )
         )
     }
@@ -180,11 +206,6 @@ data class Vault(
         )
     }
 
-    val witnessFile: File
-        get() {
-            return File(vaultDirectory, ".witness")
-        }
-
     val currentMechanism: UnlockMechanism
         get() {
             return UnlockMechanism.mechanisms.first { it.id == unlockMechanismType }
@@ -192,65 +213,74 @@ data class Vault(
 
 
     /**
-     * Test if the creator is valid for this vault
+     * Test if the key is valid for this vault
      *
      * If the result is true, this object's [key] will be set.
      * @param key The creator to test
-     * @return True if the creator is valid, false otherwise
+     * @return True if the key is valid, false otherwise
      */
     fun testKey(key: SecretKeySpec): Boolean {
-        if (!witnessFile.exists()) {
-            throw FileSystemException(witnessFile, reason = "The witness file does not exist")
+        val oldKey = this.key
+        this.key = key
+        try {
+            loadFileTree()
+        } catch (e: Exception) {
+            this.key = oldKey
+            return false
         }
 
-        if (Crypto.Decrypt.witness(this, key).contentEquals(id.toByteArray())) {
-            this.key = key
-            return true
-        }
-
-        return false
+        return true
     }
 
     fun delete() {
         currentMechanism.deleter(this)
-        if(!vaultDirectory.deleteRecursively() || vaultDirectory.exists()) {
+        if (!vaultDirectory.deleteRecursively() || vaultDirectory.exists()) {
             throw FileSystemException(vaultDirectory, reason = "Failed to delete vault directory")
         }
     }
 
     fun onSetBackground(context: Context) {
         Log.d("Vault", "Vault on set background with encryption level $encryptionLevel")
-        when(encryptionLevel.toInt()) {
+        when (encryptionLevel.toInt()) {
             0x00 -> {
                 return
             }
+
             0x01 -> {
-                // Create an explicit intent for an Activity in your app.
-                val intent = Intent("fr.theskyblockman.close_chest")
-                val pendingIntent: PendingIntent = PendingIntentCompat.getBroadcast(context, 0, intent, PendingIntent.FLAG_ONE_SHOT, false)!!
+                val intent = Intent("fr.theskyblockman.lifechest.close_chest")
+                val pendingIntent: PendingIntent = PendingIntentCompat.getBroadcast(
+                    context,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_ONE_SHOT,
+                    false
+                )!!
 
-                val builder = NotificationCompat.Builder(context, ASK_TO_CLOSE_CHANNEL_ID)
-                    .setSmallIcon(R.drawable.ic_launcher_monochrome)
-                    .setContentTitle(context.getString(R.string.close_your_chest))
-                    .setContentText(context.getString(R.string.click_to_close_chest))
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
-                    .setContentIntent(pendingIntent)
+                val builder = NotificationCompat.Builder(context, ASK_TO_CLOSE_CHANNEL_ID).apply {
+                    setSmallIcon(R.drawable.outline_warning_24)
+                    setContentTitle(context.getString(R.string.close_your_chest))
+                    setContentText(context.getString(R.string.click_to_close_chest))
+                    priority = NotificationCompat.PRIORITY_HIGH
+                    setContentIntent(pendingIntent)
+                }
 
-                with(NotificationManagerCompat.from(context)) {
+                NotificationManagerCompat.from(context).apply {
                     if (ActivityCompat.checkSelfPermission(
                             context,
                             Manifest.permission.POST_NOTIFICATIONS
                         ) != PackageManager.PERMISSION_GRANTED
                     ) {
-                        return@with
+                        return@apply
                     }
-                    // notificationId is a unique int for each notification that you must define.
+
                     notify(0, builder.build())
                 }
             }
+
             0x02 -> {
                 (context as Activity).finish()
             }
+
             else -> {
                 throw FileSystemException(vaultDirectory, reason = "Invalid encryption level")
             }
@@ -258,16 +288,56 @@ data class Vault(
     }
 
     fun onBroughtBack(context: Context) {
-        when(encryptionLevel.toInt()) {
+        when (encryptionLevel.toInt()) {
             0x00, 0x02 -> {
                 return
             }
+
             0x01 -> {
                 NotificationManagerCompat.from(context).cancel(0)
             }
+
             else -> {
                 throw FileSystemException(vaultDirectory, reason = "Invalid encryption level")
             }
         }
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Vault
+
+        if (name != other.name) return false
+        if (id != other.id) return false
+        if (creationDate != other.creationDate) return false
+        if (fileListID != other.fileListID) return false
+        if (encryptionLevel != other.encryptionLevel) return false
+        if (unlockMechanismType != other.unlockMechanismType) return false
+        if (additionalUnlockData != other.additionalUnlockData) return false
+        if (versionCode != other.versionCode) return false
+        if (sortMethod != other.sortMethod) return false
+        if (key != other.key) return false
+        if (fileTree != other.fileTree) return false
+        if (json != other.json) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + id.hashCode()
+        result = 31 * result + creationDate.hashCode()
+        result = 31 * result + fileListID.hashCode()
+        result = 31 * result + encryptionLevel
+        result = 31 * result + unlockMechanismType.hashCode()
+        result = 31 * result + additionalUnlockData.hashCode()
+        result = 31 * result + versionCode.hashCode()
+        result = 31 * result + sortMethod.hashCode()
+        result = 31 * result + (key?.hashCode() ?: 0)
+        result = 31 * result + (fileTree?.hashCode() ?: 0)
+        result = 31 * result + json.hashCode()
+        return result
     }
 }

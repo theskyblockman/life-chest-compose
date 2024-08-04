@@ -18,9 +18,10 @@ message Lcef {
   string unlockMethod = 3;
   map<string, bytes> additionalUnlockData = 4;
   bytes encryptedFileName = 5;
-  string fileID = 6;
-  string vaultID = 7;
-  FileMetadata fileMetadata = 8;
-  bytes thumbnail = 9;
-  bytes thumbnailIv = 10;
+  bytes encryptedFileNameIv = 6;
+  string fileID = 7;
+  string vaultID = 8;
+  FileMetadata fileMetadata = 9;
+  bytes thumbnail = 10;
+  bytes thumbnailIv = 11;
 }

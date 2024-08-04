@@ -4,10 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,14 +64,14 @@ fun ExplorerTopAppBar(
                 if (isSelectionMode) {
                     IconButton(onClick = onClearSelection) {
                         Icon(
-                            imageVector = Icons.Filled.Clear,
+                            painter = painterResource(R.drawable.outline_close_24),
                             contentDescription = stringResource(R.string.exit_selection_mode)
                         )
                     }
                 } else {
                     IconButton(onClick = onNavigationClick) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            painter = painterResource(R.drawable.outline_arrow_back_24),
                             contentDescription = stringResource(R.string.go_back)
                         )
                     }
@@ -89,7 +85,7 @@ fun ExplorerTopAppBar(
                             id = if (isGridView) {
                                 R.drawable.outline_list_24
                             } else {
-                                R.drawable.baseline_grid_view_24
+                                R.drawable.outline_grid_view_24
                             }
                         ),
                         contentDescription = stringResource(R.string.toggle_view)
@@ -101,12 +97,12 @@ fun ExplorerTopAppBar(
                 Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
                     IconButton(onClick = { expanded = !expanded }) {
                         Icon(
-                            imageVector = Icons.Filled.MoreVert,
+                            painter = painterResource(R.drawable.outline_more_vert_24),
                             contentDescription = stringResource(R.string.more)
                         )
                     }
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        if(selectedElements.size != current!!.children.size) {
+                        if (selectedElements.size != current!!.children.size) {
                             DropdownMenuItem(
                                 { Text(stringResource(R.string.select_all)) },
                                 onClick = {

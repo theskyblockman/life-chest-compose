@@ -24,8 +24,8 @@ fun AboutDialog(activity: Activity, onDismiss: () -> Unit) {
     AlertDialog(
         icon = {
             Icon(
-                painterResource(R.drawable.ic_launcher_monochrome),
-                contentDescription = "App icon"
+                painterResource(R.drawable.outline_shield_with_heart_24),
+                contentDescription = stringResource(R.string.app_icon)
             )
         },
         title = {

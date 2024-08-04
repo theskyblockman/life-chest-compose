@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,7 +37,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewModelScope
 import fr.theskyblockman.lifechest.R
 import fr.theskyblockman.lifechest.explorer.ExplorerActivity
-import fr.theskyblockman.lifechest.explorer.ExplorerActivity.Companion.vault
+import fr.theskyblockman.lifechest.explorer.ExplorerViewModel
 import fr.theskyblockman.lifechest.explorer.FileImportViewModel
 import fr.theskyblockman.lifechest.explorer.FileImportsState
 import fr.theskyblockman.lifechest.main.VaultListItem
@@ -45,6 +46,7 @@ import fr.theskyblockman.lifechest.ui.theme.AppTheme
 import fr.theskyblockman.lifechest.unlock_mechanisms.UnlockMechanism
 import fr.theskyblockman.lifechest.vault.Crypto
 import fr.theskyblockman.lifechest.vault.Vault
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -131,7 +133,7 @@ fun ImportActivityContent(file: Uri, fileName: String) {
                         val intent = Intent(
                             context,
                             ExplorerActivity::class.java
-                        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
 
                         val vaultBundle = Bundle()
                         vaultBundle.putString("vault", Json.encodeToString(currentVault))
@@ -168,7 +170,6 @@ fun ImportActivityContent(file: Uri, fileName: String) {
                         vault = vault,
                         snackbarHostState = snackbarHostState,
                         scope = scope,
-                        context = context,
                         readOnly = true,
                         activated = true,
                         reloadVaults = { loadedVaults = Vault.loadVaults() }) {
@@ -197,17 +198,37 @@ fun Importer(
     viewModel: FileImportViewModel,
     snackbarHostState: SnackbarHostState,
     activity: ExplorerActivity,
+    explorerViewModel: ExplorerViewModel,
     onDismiss: () -> Unit
 ) {
     var lcef by remember { mutableStateOf<Lcef?>(null) }
     var headerSize: Long? by remember { mutableStateOf(0L) }
+
+    val context = LocalContext.current
+
+    val vault by explorerViewModel.vault.collectAsState()
 
     LaunchedEffect(Unit) {
         activity.contentResolver.openInputStream(toImport).use {
             it!!.use { inputStream ->
                 val magic = ByteArray(4)
                 if (inputStream.read(magic) != 4 || !magic.contentEquals(LcefManager.LCEF_MAGIC)) {
-                    Log.e("ImportActivity", "Invalid LCEF file")
+                    viewModel.moveFiles(
+                        lastResultCompleter = CompletableDeferred(listOf(toImport)),
+                        vault = vault!!,
+                        currentPath = locationId,
+                    ) {
+                        withContext(Dispatchers.Main) {
+                            Toast
+                                .makeText(
+                                    context,
+                                    context.getString(R.string.your_file_has_been_imported),
+                                    Toast.LENGTH_SHORT
+                                )
+                                .show()
+                            (context as Activity).finish()
+                        }
+                    }
                     return@LaunchedEffect
                 }
 
@@ -232,8 +253,6 @@ fun Importer(
         }
     }
 
-    val context = LocalContext.current
-
     if (lcef != null) {
         for (unlockMechanism in UnlockMechanism.mechanisms) {
             if (unlockMechanism.id == lcef!!.unlockMethod) {
@@ -256,14 +275,14 @@ fun Importer(
 
                                     LcefManager.importLcefFiles(
                                         context,
-                                        vault,
+                                        vault!!,
                                         locationId,
                                         mapOf(
                                             toImport to key
                                         )
                                     )
 
-                                    vault.writeFileTree()
+                                    vault!!.writeFileTree()
 
                                     uiState.update {
                                         FileImportsState(

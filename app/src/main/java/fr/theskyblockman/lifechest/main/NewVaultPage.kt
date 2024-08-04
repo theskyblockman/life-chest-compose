@@ -12,9 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
@@ -35,11 +32,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import fr.theskyblockman.lifechest.R
+import fr.theskyblockman.lifechest.VaultsViewModel
 import fr.theskyblockman.lifechest.unlock_mechanisms.UnlockMechanism
 import fr.theskyblockman.lifechest.vault.Policy
 import fr.theskyblockman.lifechest.vault.Vault
@@ -47,7 +47,11 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewVaultPage(navController: NavController, context: Context?) {
+fun NewVaultPage(
+    navController: NavController,
+    context: Context?,
+    vaultsViewModel: VaultsViewModel
+) {
     var currentPolicy by remember {
         mutableStateOf(
             Policy(
@@ -78,7 +82,7 @@ fun NewVaultPage(navController: NavController, context: Context?) {
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            painter = painterResource(R.drawable.outline_arrow_back_24),
                             contentDescription = stringResource(id = R.string.go_back)
                         )
                     }
@@ -95,16 +99,17 @@ fun NewVaultPage(navController: NavController, context: Context?) {
                 }
 
                 coroutineScope.launch {
-                    val createdVault = Vault.createFromPolicy(
+                    Vault.createFromPolicy(
                         currentPolicy
-                    )
-                    if (createdVault == null) return@launch
+                    ) ?: return@launch
+
+                    vaultsViewModel.updateLoadedVaults()
 
                     navController.navigateUp()
                 }
             }) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    painter = painterResource(R.drawable.outline_add_24),
                     contentDescription = stringResource(id = R.string.create_new_chest),
                     modifier = Modifier.padding(end = 8.dp)
                 )
@@ -151,6 +156,7 @@ fun NewVaultPage(navController: NavController, context: Context?) {
             ) {
                 for (mechanism in UnlockMechanism.mechanisms) {
                     FilterChip(
+                        enabled = mechanism.enabled(context ?: LocalContext.current),
                         selected = currentPolicy.unlockMechanismType == mechanism.id,
                         onClick = {
                             currentPolicy = currentPolicy.copy(unlockMechanismType = mechanism.id)
@@ -190,7 +196,7 @@ fun NewVaultPage(navController: NavController, context: Context?) {
                         .fillMaxWidth(.75f)
                 )
                 Text(
-                    text = "Stage ${currentPolicy.encryptionLevel + 1}",
+                    text = stringResource(R.string.stage_number, currentPolicy.encryptionLevel + 1),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )

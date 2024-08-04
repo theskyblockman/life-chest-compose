@@ -21,7 +21,7 @@ object Crypto {
     const val DEFAULT_CIPHER_NAME = "AES/CTR/NoPadding"
     const val HASH_CIPHER_NAME = "SHA-256"
 
-    private fun createIV(cipher: Cipher): IvParameterSpec {
+    fun createIV(cipher: Cipher): IvParameterSpec {
         val randomSecureRandom = SecureRandom.getInstance("SHA1PRNG")
         val rawIv = ByteArray(cipher.blockSize)
         randomSecureRandom.nextBytes(rawIv)
@@ -41,16 +41,6 @@ object Crypto {
             chars[Random.nextInt(chars.size)]
         }
         return randomString.concatToString()
-    }
-
-    fun createWitness(vault: Vault) {
-        val cipher = Cipher.getInstance(DEFAULT_CIPHER_NAME)
-        assert(vault.key != null) {
-            "Vault is still locked"
-        }
-        cipher.init(Cipher.ENCRYPT_MODE, vault.key, IvParameterSpec(ByteArray(16)))
-        vault.witnessFile.createNewFile()
-        vault.witnessFile.writeBytes(cipher.doFinal(vault.id.toByteArray()))
     }
 
     object Encrypt {
@@ -96,7 +86,7 @@ object Crypto {
         fun inputStreamToInputStream(
             inputStream: InputStream,
             key: SecretKeySpec,
-            iv: ByteArray = ByteArray(16)
+            iv: ByteArray
         ): CipherInputStream {
             val cipher = Cipher.getInstance(DEFAULT_CIPHER_NAME)
 
@@ -108,15 +98,15 @@ object Crypto {
         fun stringToBytes(
             string: String,
             key: SecretKeySpec,
-            iv: IvParameterSpec = IvParameterSpec(ByteArray(16))
+            iv: IvParameterSpec
         ): ByteArray {
             return bytes(string.toByteArray(), key, iv)
         }
 
-        fun bytes(
+        private fun bytes(
             bytes: ByteArray,
             key: SecretKeySpec,
-            iv: IvParameterSpec = IvParameterSpec(ByteArray(16))
+            iv: IvParameterSpec
         ): ByteArray {
             val cipher = Cipher.getInstance(DEFAULT_CIPHER_NAME)
             cipher.init(Cipher.ENCRYPT_MODE, key, iv)
@@ -126,20 +116,6 @@ object Crypto {
     }
 
     object Decrypt {
-        fun witness(
-            vault: Vault,
-            key: SecretKeySpec
-        ): ByteArray {
-            val cipher = Cipher.getInstance(DEFAULT_CIPHER_NAME)
-            val inputStream = vault.witnessFile.inputStream()
-
-            cipher.init(Cipher.DECRYPT_MODE, key, IvParameterSpec(ByteArray(16)))
-
-            return inputStream.use {
-                cipher.doFinal(inputStream.readBytes())
-            }
-        }
-
         private fun fileToStream(file: EncryptedFile, vault: Vault): Sequence<ByteArray> {
             val cipher = Cipher.getInstance(DEFAULT_CIPHER_NAME)
 
@@ -178,7 +154,7 @@ object Crypto {
         fun inputStreamToInputStream(
             inputStream: InputStream,
             key: SecretKeySpec,
-            iv: ByteArray = ByteArray(16)
+            iv: ByteArray
         ): CipherInputStream {
             val cipher = Cipher.getInstance(DEFAULT_CIPHER_NAME)
 
@@ -201,7 +177,7 @@ object Crypto {
         fun bytesToString(
             bytes: ByteArray,
             key: SecretKeySpec,
-            iv: IvParameterSpec = IvParameterSpec(ByteArray(16))
+            iv: IvParameterSpec
         ): String {
             return bytes(bytes, key, iv).decodeToString()
         }
@@ -209,7 +185,7 @@ object Crypto {
         fun bytes(
             bytes: ByteArray,
             key: SecretKeySpec,
-            iv: IvParameterSpec = IvParameterSpec(ByteArray(16))
+            iv: IvParameterSpec
         ): ByteArray {
             val cipher = Cipher.getInstance(DEFAULT_CIPHER_NAME)
             cipher.init(Cipher.DECRYPT_MODE, key, iv)
@@ -239,7 +215,11 @@ object Crypto {
                 randomAccessFile: RandomAccessFile
             ): Long {
                 randomAccessFile.seek(offset)
-                cipher.init(Cipher.DECRYPT_MODE, key, IvParameterSpec(calculateAdjustedIV(iv, offset / 16)))
+                cipher.init(
+                    Cipher.DECRYPT_MODE,
+                    key,
+                    IvParameterSpec(calculateAdjustedIV(iv, offset / 16))
+                )
                 var totalBytesRead = 0L
                 val encrypted = ByteArray(DEFAULT_BUFFER_SIZE)
                 while (totalBytesRead < size) {
@@ -250,12 +230,17 @@ object Crypto {
                         break
                     }
 
-                    totalBytesRead += cipher.update(encrypted, 0, bytesRead, data, totalBytesRead.toInt())
+                    totalBytesRead += cipher.update(
+                        encrypted,
+                        0,
+                        bytesRead,
+                        data,
+                        totalBytesRead.toInt()
+                    )
                 }
 
                 return totalBytesRead
             }
         }
-
     }
 }

@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,8 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
@@ -74,7 +73,7 @@ fun OnboardingActivityContent(finish: () -> Unit) {
                     actions = {
                         val alpha: Float by animateFloatAsState(
                             if (isLastPage) 0f else 1f,
-                            label = "Fading in/out buttons"
+                            label = stringResource(R.string.fading_in_out_buttons)
                         )
                         Button(
                             contentPadding = PaddingValues(start = 16.dp, end = 24.dp), onClick =
@@ -95,38 +94,42 @@ fun OnboardingActivityContent(finish: () -> Unit) {
             floatingActionButton = {
                 val alpha: Float by animateFloatAsState(
                     if (isLastPage) 1f else 0f,
-                    label = "Fading in/out buttons"
+                    label = stringResource(R.string.fading_in_out_buttons)
                 )
                 val buttonScope = rememberCoroutineScope()
 
-                if (alpha != 1f) {
-                    Button(
-                        onClick =
-                        {
-                            buttonScope.launch {
-                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                            }
-                        }, modifier = Modifier.alpha(1 - alpha)
-                    ) {
-                        Text(text = stringResource(id = R.string.next))
+                Box(
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (alpha != 1f) {
+                        Button(
+                            onClick =
+                            {
+                                buttonScope.launch {
+                                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                }
+                            }, modifier = Modifier.alpha(1 - alpha)
+                        ) {
+                            Text(text = stringResource(id = R.string.next))
+                        }
                     }
-                }
 
-                if (alpha != 0f) {
-                    Button(
-                        contentPadding = PaddingValues(start = 16.dp, end = 24.dp), onClick =
-                        {
-                            buttonScope.launch {
-                                finish()
-                            }
-                        }, modifier = Modifier.alpha(alpha)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Done,
-                            contentDescription = stringResource(id = R.string.start_using_the_app),
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text(text = stringResource(id = R.string.start_using_the_app))
+                    if (alpha != 0f) {
+                        Button(
+                            contentPadding = PaddingValues(start = 16.dp, end = 24.dp), onClick =
+                            {
+                                buttonScope.launch {
+                                    finish()
+                                }
+                            }, modifier = Modifier.alpha(alpha)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.outline_check_24),
+                                contentDescription = stringResource(id = R.string.start_using_the_app),
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text(text = stringResource(id = R.string.start_using_the_app))
+                        }
                     }
                 }
 
@@ -138,7 +141,7 @@ fun OnboardingActivityContent(finish: () -> Unit) {
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
-                    Arrangement.SpaceEvenly,
+                    if (page == 1) Arrangement.Center else Arrangement.SpaceEvenly,
                     Alignment.CenterHorizontally
                 ) {
                     when (page) {
@@ -147,7 +150,7 @@ fun OnboardingActivityContent(finish: () -> Unit) {
                         2 -> PageThree()
                         else -> {
                             Text(
-                                text = "Page $page",
+                                text = stringResource(R.string.page_number, page),
                                 style = MaterialTheme.typography.titleLarge,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
@@ -155,7 +158,6 @@ fun OnboardingActivityContent(finish: () -> Unit) {
                         }
                     }
                 }
-
             }
         }
     }
@@ -165,7 +167,7 @@ fun OnboardingActivityContent(finish: () -> Unit) {
 fun PageOne() {
     Text(
         text = stringResource(id = R.string.welcome_page_1_title),
-        style = MaterialTheme.typography.displayMedium,
+        style = MaterialTheme.typography.displaySmall,
         textAlign = TextAlign.Center,
         fontWeight = FontWeight.ExtraBold
     )
@@ -181,13 +183,16 @@ fun PageOne() {
 fun PageTwo() {
     Text(
         text = stringResource(id = R.string.welcome_page_2_title),
-        style = MaterialTheme.typography.displayMedium,
+        style = MaterialTheme.typography.displaySmall,
         textAlign = TextAlign.Center,
-        fontWeight = FontWeight.ExtraBold
+        fontWeight = FontWeight.ExtraBold,
+        modifier = Modifier.padding(
+            bottom = 24.dp
+        )
     )
     Text(
         text = stringResource(id = R.string.welcome_page_2_content),
-        style = MaterialTheme.typography.headlineMedium,
+        style = MaterialTheme.typography.headlineSmall,
         textAlign = TextAlign.Center,
         fontWeight = FontWeight.W500
     )
@@ -197,9 +202,9 @@ fun PageTwo() {
 fun PageThree() {
     Text(
         text = stringResource(id = R.string.welcome_page_3_title),
-        style = MaterialTheme.typography.displayMedium,
+        style = MaterialTheme.typography.displaySmall,
         textAlign = TextAlign.Center,
-        fontWeight = FontWeight.ExtraBold
+        fontWeight = FontWeight.ExtraBold,
     )
     Text(
         text = stringResource(id = R.string.welcome_page_3_content),

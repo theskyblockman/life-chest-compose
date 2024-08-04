@@ -22,7 +22,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -135,8 +134,10 @@ class Password : UnlockMechanism() {
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(28.dp)
             ) {
-                Column(Modifier
-                    .padding(24.dp)) {
+                Column(
+                    Modifier
+                        .padding(24.dp)
+                ) {
                     Text(
                         text = stringResource(R.string.enter_your_password),
                         style = MaterialTheme.typography.headlineSmall,
@@ -168,7 +169,10 @@ class Password : UnlockMechanism() {
                         focusRequester.requestFocus()
                     }
 
-                    Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         TextButton(
                             onClick = {
                                 lastResult =
@@ -190,7 +194,7 @@ class Password : UnlockMechanism() {
         }
     }
 
-    override fun deleter(vault: Vault) { }
+    override fun deleter(vault: Vault) {}
 
     override val id: String
         get() = "password"

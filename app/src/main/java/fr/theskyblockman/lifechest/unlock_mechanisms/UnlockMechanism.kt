@@ -1,5 +1,6 @@
 package fr.theskyblockman.lifechest.unlock_mechanisms
 
+import android.content.Context
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -18,8 +19,18 @@ abstract class UnlockMechanism {
     @Composable
     abstract fun creator(modifier: Modifier): suspend (vault: Vault) -> SecretKeySpec?
 
+    open fun enabled(context: Context): Boolean {
+        return true
+    }
+
     @Composable
-    abstract fun Opener(vaultId: String, additionalUnlockData: Map<String, ByteArray>, snackbarHostState: SnackbarHostState, onDismissRequest: () -> Unit, onKeyIssued: (key: SecretKeySpec) -> Boolean)
+    abstract fun Opener(
+        vaultId: String,
+        additionalUnlockData: Map<String, ByteArray>,
+        snackbarHostState: SnackbarHostState,
+        onDismissRequest: () -> Unit,
+        onKeyIssued: (key: SecretKeySpec) -> Boolean
+    )
 
     abstract fun deleter(vault: Vault)
 

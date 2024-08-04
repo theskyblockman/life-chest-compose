@@ -2,7 +2,6 @@ package fr.theskyblockman.lifechest.unlock_mechanisms
 
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,7 +22,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -123,8 +121,10 @@ class Pin : UnlockMechanism() {
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(28.dp)
             ) {
-                Column(Modifier
-                    .padding(24.dp)) {
+                Column(
+                    Modifier
+                        .padding(24.dp)
+                ) {
                     Text(
                         text = stringResource(R.string.enter_your_pin_code),
                         style = MaterialTheme.typography.headlineSmall,
@@ -156,7 +156,10 @@ class Pin : UnlockMechanism() {
                         focusRequester.requestFocus()
                     }
 
-                    Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         TextButton(
                             onClick = {
                                 lastResult =
@@ -178,7 +181,7 @@ class Pin : UnlockMechanism() {
         }
     }
 
-    override fun deleter(vault: Vault) { }
+    override fun deleter(vault: Vault) {}
 
     override val id: String
         get() = "pin"

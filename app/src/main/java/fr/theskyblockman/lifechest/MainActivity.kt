@@ -77,7 +77,7 @@ fun MainActivityNav(context: Context?, vaultsViewModel: VaultsViewModel = viewMo
                     )
                 }) + scaleIn(animationSpec = tween(300, easing = LinearEasing))
             }) {
-                NewVaultPage(navController, context)
+                NewVaultPage(navController, context, vaultsViewModel)
             }
 
             composable("/edit/{vaultId}", arguments = listOf(

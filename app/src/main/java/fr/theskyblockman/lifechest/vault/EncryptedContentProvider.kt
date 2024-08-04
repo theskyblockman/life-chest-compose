@@ -13,9 +13,10 @@ import android.os.ProxyFileDescriptorCallback
 import android.os.storage.StorageManager
 import android.provider.MediaStore.MediaColumns
 import android.provider.OpenableColumns
+import android.util.Log
 import fr.theskyblockman.lifechest.BuildConfig
-import fr.theskyblockman.lifechest.explorer.ExplorerActivity
 import fr.theskyblockman.lifechest.vault.Crypto.DEFAULT_CIPHER_NAME
+import fr.theskyblockman.lifechest.vault.EncryptedContentProvider.Companion.vault
 import java.io.RandomAccessFile
 import javax.crypto.Cipher
 
@@ -23,16 +24,19 @@ import javax.crypto.Cipher
  * A content provider enabling reading the content of encrypted files using URIs.
  *
  * Here's the scheme:
- * ```
+ * ```plain
  * content://fr.theskyblockman.lifechest.encryptedfiles/<vault-id>/<file-id>
  * ```
  *
  * In no event shall one of those URIs be shared outside of the app or to the user.
  *
  * Those URIs only work when the app is running in the foreground and the vault is unlocked.
+ * (when [vault] is set)
  */
 class EncryptedContentProvider : ContentProvider() {
     companion object {
+        lateinit var vault: Vault
+
         private val COLUMNS: Array<out String> = arrayOf(
             OpenableColumns.DISPLAY_NAME,
             OpenableColumns.SIZE,
@@ -42,7 +46,6 @@ class EncryptedContentProvider : ContentProvider() {
         // Could be
         // - fr.theskyblockman.lifechest.encryptedfiles
         // - fr.theskyblockman.lifechest.debug.encryptedfiles
-        // This is done to avoid collision between data made in the debug app and the app in prod
         const val AUTHORITY = "${BuildConfig.APPLICATION_ID}.encryptedfiles"
 
 
@@ -67,11 +70,11 @@ class EncryptedContentProvider : ContentProvider() {
         val vaultID = uri.pathSegments[0]
         val fileID = uri.pathSegments[1]
 
-        if (ExplorerActivity.vault.id != vaultID) {
+        if (vault.id != vaultID) {
             return null
         }
 
-        val file = ExplorerActivity.vault.fileTree!!.goTo(fileID) ?: return null
+        val file = vault.fileTree!!.goTo(fileID) ?: return null
 
         if (file !is FileNode) {
             return null
@@ -139,6 +142,12 @@ class EncryptedContentProvider : ContentProvider() {
         throw java.lang.UnsupportedOperationException("No external updates")
     }
 
+    private val handlerThread = HandlerThread("BackgroundFileReader")
+
+    init {
+        handlerThread.start()
+    }
+
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor? {
         if (mode != "r") {
             throw UnsupportedOperationException("Only reading is supported")
@@ -149,26 +158,23 @@ class EncryptedContentProvider : ContentProvider() {
         val storageManager = context?.getSystemService(Context.STORAGE_SERVICE) as StorageManager?
             ?: throw SecurityException("No storage manager")
 
-        if (ExplorerActivity.vault.id != file.vaultID) {
+        if (vault.id != file.vaultID) {
             throw SecurityException("Vault mismatch")
         }
-        val handlerThread = HandlerThread("BackgroundFileReader")
-        handlerThread.start()
+
         val randomAccessFile =
-            Crypto.Decrypt.FileProgressively.getInputStreamForFile(ExplorerActivity.vault, file.attachedFile)
+            Crypto.Decrypt.FileProgressively.getInputStreamForFile(vault, file.attachedFile)
         return storageManager.openProxyFileDescriptor(
             ParcelFileDescriptor.MODE_READ_ONLY, EncryptedProxyFileDescriptorCallback(
                 file,
-                randomAccessFile,
-                handlerThread
+                randomAccessFile
             ), Handler(handlerThread.looper)
         )
     }
 
     private inner class EncryptedProxyFileDescriptorCallback(
         private val file: FileNode,
-        private val randomAccessFile: RandomAccessFile,
-        private val handlerThread: HandlerThread
+        private val randomAccessFile: RandomAccessFile
     ) : ProxyFileDescriptorCallback() {
         private var currentCipher = Cipher.getInstance(DEFAULT_CIPHER_NAME)
         private var lastOffset: Long = 0
@@ -181,7 +187,7 @@ class EncryptedContentProvider : ContentProvider() {
             if (data == null) return if (offset + size > file.size) (file.size - offset).toInt() else size
 
             val result = Crypto.Decrypt.FileProgressively.readWith(
-                currentCipher!!, ExplorerActivity.vault.key!!, file.attachedFile.iv, offset, size.toLong(),
+                currentCipher!!, vault.key!!, file.attachedFile.iv, offset, size.toLong(),
                 data, randomAccessFile
             )
 
@@ -190,8 +196,12 @@ class EncryptedContentProvider : ContentProvider() {
             return result.toInt()
         }
 
+        init {
+            Log.d("EncryptedContentProvider", "Initializing file")
+        }
+
         override fun onRelease() {
-            handlerThread.quitSafely()
+            Log.d("EncryptedContentProvider", "Releasing file")
             randomAccessFile.close()
         }
     }

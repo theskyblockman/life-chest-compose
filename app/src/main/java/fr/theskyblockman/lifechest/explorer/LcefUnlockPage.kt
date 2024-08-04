@@ -35,6 +35,7 @@ import fr.theskyblockman.lifechest.transactions.LcefManager
 import fr.theskyblockman.lifechest.transactions.LcefOuterClass.Lcef
 import fr.theskyblockman.lifechest.unlock_mechanisms.UnlockMechanism
 import fr.theskyblockman.lifechest.vault.Crypto
+import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,7 +44,7 @@ fun LcefUnlockPage(
     navController: NavController,
     files: List<Uri>,
     location: String,
-    transactionId: String? = null
+    explorerViewModel: ExplorerViewModel
 ) {
     val pageData = remember {
         mutableStateMapOf<String, Pair<Map<Lcef, Uri>, SecretKeySpec?>>()
@@ -74,9 +75,7 @@ fun LcefUnlockPage(
     val snackbarHostState = remember { SnackbarHostState() }
 
     BackHandler {
-        if (transactionId != null) {
-            ExplorerActivity.lcefUrisTransactions.remove(transactionId)
-        }
+        explorerViewModel.setLcefUrisTransaction(null)
     }
 
     Scaffold(
@@ -85,9 +84,7 @@ fun LcefUnlockPage(
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            if (transactionId != null) {
-                                ExplorerActivity.lcefUrisTransactions.remove(transactionId)
-                            }
+                            explorerViewModel.setLcefUrisTransaction(null)
                             navController.navigateUp()
                         }
                     ) {
@@ -120,16 +117,13 @@ fun LcefUnlockPage(
 
                     LcefManager.importLcefFiles(
                         context,
-                        ExplorerActivity.vault,
+                        explorerViewModel.vault.value!!,
                         location,
                         importableFiles
                     )
 
-                    ExplorerActivity.vault.writeFileTree()
-
-                    if (transactionId != null) {
-                        ExplorerActivity.lcefUrisTransactions.remove(transactionId)
-                    }
+                    explorerViewModel.vault.value!!.writeFileTree()
+                    explorerViewModel.setLcefUrisTransaction(null)
 
                     navController.navigateUp()
                 }
@@ -189,7 +183,9 @@ fun LcefUnlockPage(
                                 stringResource(
                                     R.string.vault_import_title,
                                     vaultsDisplayed + 1,
-                                    if (vaultToUnlock.second.second != null) stringResource(R.string.vault_import_title_unlocked) else stringResource(R.string.vault_import_title_locked)
+                                    if (vaultToUnlock.second.second != null) stringResource(R.string.vault_import_title_unlocked) else stringResource(
+                                        R.string.vault_import_title_locked
+                                    )
                                 )
                             )
                         },
@@ -197,10 +193,13 @@ fun LcefUnlockPage(
                             val fileNames = mutableListOf<String>()
                             if (vaultToUnlock.second.second != null) {
                                 for (file in vaultToUnlock.second.first) {
-                                    fileNames.add("- " + Crypto.Decrypt.bytesToString(
-                                        file.key.encryptedFileName.toByteArray(),
-                                        vaultToUnlock.second.second!!
-                                    ))
+                                    fileNames.add(
+                                        "- " + Crypto.Decrypt.bytesToString(
+                                            file.key.encryptedFileName.toByteArray(),
+                                            vaultToUnlock.second.second!!,
+                                            IvParameterSpec(file.key.encryptedFileNameIv.toByteArray())
+                                        )
+                                    )
                                 }
                             } else {
                                 for (file in vaultToUnlock.second.first) {

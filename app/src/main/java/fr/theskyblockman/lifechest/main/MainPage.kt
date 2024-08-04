@@ -1,7 +1,6 @@
 package fr.theskyblockman.lifechest.main
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -14,15 +13,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -43,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -161,17 +158,22 @@ fun MainPage(
                         }
                     }
 
-                    Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More")
+                    Icon(
+                        painter = painterResource(R.drawable.outline_more_vert_24),
+                        contentDescription = stringResource(R.string.more)
+                    )
                 }
             })
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { navController.navigate("/new") }) {
+            ExtendedFloatingActionButton(text = {
+                Text(text = stringResource(id = R.string.create_new_chest))
+            }, icon = {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    painter = painterResource(R.drawable.outline_add_24),
                     contentDescription = stringResource(id = R.string.create_new_chest)
                 )
-            }
+            }, onClick = { navController.navigate("/new") })
         }
     ) { innerPadding ->
         val loadedVaults by vaultsViewModel.loadedVaults.collectAsStateWithLifecycle()
@@ -211,7 +213,6 @@ fun MainPage(
                     snackbarHostState = snackbarHostState,
                     navController = navController,
                     scope = scope,
-                    context = context,
                     readOnly = false,
                     activated = true,
                     reloadVaults = { vaultsViewModel.updateLoadedVaults() }) {
@@ -234,7 +235,7 @@ fun DeleteAllDialog(vaults: List<Vault>, onDismissRequest: () -> Unit, onConfirm
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
-                    stringResource(R.string.delete),
+                    stringResource(R.string.delete_all),
                     style = MaterialTheme.typography.headlineSmall
                 )
                 Box(modifier = Modifier.padding(bottom = 16.dp))
@@ -308,12 +309,12 @@ fun VaultListItem(
     snackbarHostState: SnackbarHostState,
     navController: NavController? = null,
     scope: CoroutineScope,
-    context: Context?,
     readOnly: Boolean = false,
     activated: Boolean = true,
     reloadVaults: () -> Unit,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     var expanded by remember { mutableStateOf(false) }
     var deletionDialogExpanded by remember { mutableStateOf(false) }
 
@@ -326,13 +327,12 @@ fun VaultListItem(
                     vault.delete()
                     reloadVaults()
                     snackbarHostState.showSnackbar(
-                        context?.getString(R.string.vault_delete_success)
-                            ?: "Success"
+                        context.getString(R.string.vault_delete_success)
                     )
                 } catch (e: Exception) {
                     reloadVaults()
                     snackbarHostState.showSnackbar(
-                        context?.getString(R.string.vault_delete_fail) ?: "Failure"
+                        context.getString(R.string.vault_delete_fail)
                     )
                 }
             }
@@ -351,7 +351,10 @@ fun VaultListItem(
                     onClick = {
                         expanded = true
                     }) {
-                    Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More")
+                    Icon(
+                        painter = painterResource(R.drawable.outline_more_vert_24),
+                        contentDescription = stringResource(R.string.more)
+                    )
                 }
                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     DropdownMenuItem(

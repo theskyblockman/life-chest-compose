@@ -117,7 +117,15 @@ class DirectoryNode(
         get() = "directory"
 
     override val size: Long
-        get() = 0
+        get() {
+            var size = 0L
+
+            for (child in children) {
+                size += child.size
+            }
+
+            return size
+        }
 
     fun listFiles(): List<FileNode> {
         val values = mutableListOf<FileNode>()
@@ -162,13 +170,13 @@ class DirectoryNode(
     }
 
     override fun goToParentOf(fileId: String): DirectoryNode? {
-        for(child in children) {
-            if(child.id == fileId) {
+        for (child in children) {
+            if (child.id == fileId) {
                 return this
             }
 
             val result = child.goToParentOf(fileId)
-            if(result != null) {
+            if (result != null) {
                 return result
             }
         }
@@ -177,7 +185,7 @@ class DirectoryNode(
     }
 
     override fun delete() {
-        for(child in children) {
+        for (child in children) {
             child.delete()
         }
     }

@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.protobuf)
-    kotlin("plugin.serialization") version "2.0.0-RC1"
+    alias(libs.plugins.serialization)
 }
 
 android {
@@ -17,8 +17,8 @@ android {
         applicationId = "fr.theskyblockman.lifechest"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10000
-        versionName = "1.0"
+        versionCode = 10001
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -40,11 +40,13 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "21"
+        allWarningsAsErrors = false
+        freeCompilerArgs += "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
     }
     buildFeatures {
         viewBinding = true
@@ -83,7 +85,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.lifecycle.runtime.compose.android)
-    implementation(libs.zoomable)
+    implementation(libs.zoomimage.compose)
     implementation(libs.androidx.lifecycle.process)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -98,6 +100,9 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.ui)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
+    implementation(libs.accompanist.drawablepainter)
 
     implementation(libs.androidx.biometric)
 
@@ -105,12 +110,10 @@ dependencies {
 
     implementation(libs.protobuf.kotlin.lite)
     implementation(libs.protobuf.javalite)
-
-    implementation(libs.material.kolor)
 }
 
 composeCompiler {
-    suppressKotlinVersionCompatibilityCheck = "2.0.0-RC1"
+    //suppressKotlinVersionCompatibilityCheck = "2.0.0-RC1"
 }
 
 protobuf {

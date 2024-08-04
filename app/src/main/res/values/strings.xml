@@ -98,4 +98,25 @@
     <string name="create_new_directory">Create directory</string>
     <string name="create">Create</string>
     <string name="files_deleted">The files were successfully deleted</string>
+    <string name="pause">Pause</string>
+    <string name="play">Play</string>
+    <string name="audio_file_without_artwork">Audio file without artwork</string>
+    <string name="artwork_for_audio_file">Artwork for audio file</string>
+    <string name="image_alt_text">Image %1$s</string>
+    <string name="title_directory">%1$s (Directory)</string>
+    <string name="title_directory_info_title">Title</string>
+    <string name="file_amount_directory_info_title">File amount</string>
+    <string name="file_sizes_with_children_directory_info_title">File sizes (w/ children)</string>
+    <string name="not_found">Not found \"%1$s\"</string>
+    <string name="thumbnail">Thumbnail</string>
+    <string name="app_icon">App icon</string>
+    <string name="stage_number">Stage %1$s</string>
+    <string name="fading_in_out_buttons">Fading in/out buttons</string>
+    <string name="page_number">Page %1$s</string>
+    <string name="your_file_has_been_imported">Your file has been imported</string>
+    <string name="the_authentication_didn_t_work_is_your_vault_corrupted">The authentication didn\'t work, is your vault corrupted?</string>
+    <string name="previous_page">Previous page</string>
+    <string name="first_page">First page</string>
+    <string name="last_page">Last page</string>
+    <string name="the_following_file_could_not_be_read">The following file could not be read</string>
 </resources>

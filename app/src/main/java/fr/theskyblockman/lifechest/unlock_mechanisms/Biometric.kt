@@ -1,5 +1,6 @@
 package fr.theskyblockman.lifechest.unlock_mechanisms
 
+import android.content.Context
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -103,7 +104,6 @@ class Biometric : UnlockMechanism() {
             val promptInfo = PromptInfo.Builder()
                 .setTitle(context.getString(R.string.biometric_login))
                 .setSubtitle(context.getString(R.string.biometric_creation_subtitle))
-                .setNegativeButtonText(context.getString(R.string.cancel))
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 promptInfo.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
@@ -121,6 +121,15 @@ class Biometric : UnlockMechanism() {
 
             value.await()
         }
+    }
+
+    override fun enabled(context: Context): Boolean {
+        val manager = BiometricManager.from(context)
+
+        return manager.canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                    BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        ) == BiometricManager.BIOMETRIC_SUCCESS
     }
 
     @Composable
@@ -158,14 +167,14 @@ class Biometric : UnlockMechanism() {
                                 )
                             ) {
                                 coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("The authentication didn't work, is your vault corrupted?")
+                                    snackbarHostState.showSnackbar(context.getString(R.string.the_authentication_didn_t_work_is_your_vault_corrupted))
                                 }
                                 onDismissRequest()
                             }
                         }
                     }
 
-                    override fun onAuthenticationFailed() {
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                         onDismissRequest()
                     }
                 }
@@ -179,12 +188,12 @@ class Biometric : UnlockMechanism() {
                 .setTitle(context.getString(R.string.biometric_login))
                 .setSubtitle(context.getString(R.string.biometric_login_subtitle))
 
-
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 promptInfo.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
             } else {
-                promptInfo.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-                promptInfo.setNegativeButtonText(context.getString(R.string.cancel))
+                promptInfo
+                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                    .setNegativeButtonText(context.getString(R.string.cancel))
             }
 
             biometricPrompt.authenticate(
@@ -210,4 +219,6 @@ class Biometric : UnlockMechanism() {
 
     override val supportsExport: Boolean
         get() = false
+
+
 }

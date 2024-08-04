@@ -4,7 +4,6 @@ import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
-import androidx.core.content.MimeTypeFilter
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import fr.theskyblockman.lifechest.R
@@ -28,6 +27,7 @@ fun thumbnailFromMimeType(mimeType: String): Painter {
                 "application/vnd.android.package-archive",
                 "x-bzip",
                 "x-bzip2" -> return painterResource(R.drawable.outline_folder_zip_24)
+
                 else -> return painterResource(R.drawable.outline_question_mark_24)
             }
         }
