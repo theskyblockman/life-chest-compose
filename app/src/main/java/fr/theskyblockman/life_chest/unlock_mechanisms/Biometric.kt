@@ -64,7 +64,8 @@ class Biometric : UnlockMechanism() {
         ListItem(leadingContent = {
             Icon(painter = painterResource(R.drawable.outline_warning_24), contentDescription = "Warning")
         }, headlineContent = {
-            Text("WARNING! You won't be able to export or share encrypted files this way", modifier = modifier,
+            Text(
+                stringResource(R.string.warning_biometric), modifier = modifier,
                 style = TextStyle(fontWeight = FontWeight.Bold)
             )
         })

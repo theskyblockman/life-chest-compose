@@ -2,6 +2,7 @@ package fr.theskyblockman.life_chest.explorer
 
 import android.content.Context
 import android.util.Log
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -173,7 +174,7 @@ data class PageData(
     val isError: Boolean = false,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun FileReader(
     files: List<TreeNode>,
@@ -257,7 +258,7 @@ fun FileReader(
         activity.showSystemUI()
     }
 
-    HorizontalPager(state = pagerState, outOfBoundsPageCount = 0) { pageIndex ->
+    HorizontalPager(state = pagerState, beyondBoundsPageCount = 0) { pageIndex ->
         val page = files[pageIndex]
         val snackbarHostState = remember { SnackbarHostState() }
 
