@@ -17,8 +17,8 @@ android {
         applicationId = "fr.theskyblockman.life_chest"
         minSdk = 26
         targetSdk = 34
-        versionCode = 20000
-        versionName = "2.0.0"
+        versionCode = 20001
+        versionName = "2.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
