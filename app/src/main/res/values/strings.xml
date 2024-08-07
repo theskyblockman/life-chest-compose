@@ -1,24 +1,24 @@
 <resources>
     <string name="app_name" translatable="false">Life Chest</string>
     <string name="welcome_page_1_title">Hello there!</string>
-    <string name="welcome_page_1_content">Welcome to your Life Chest! Here, you will be able to create chests to store your data securely without compromising usability.</string>
+    <string name="welcome_page_1_content">Welcome to your Life Chest! Here, you will be able to create vaults to store your data securely without compromising usability.</string>
     <string name="welcome_page_2_title">Your Security is Our Main Priority</string>
-    <string name="welcome_page_2_content">We use an encryption system called Chacha20, which means attempting to access your files without your password would take about 200 trillions of trillions of trillions times the age of the universe! And to prove it, we are 100% open-source!</string>
-    <string name="welcome_page_3_title">Let\'s Create Your First Chest!</string>
+    <string name="welcome_page_2_content">We use an encryption system called AES, which means attempting to access your files without your password would essentially be useless (if your password is strong enough!) On top of that, we are 100% open-source!</string>
+    <string name="welcome_page_3_title">Let\'s Create Your First Vault!</string>
     <string name="welcome_page_3_content">You\'ll see, it\'s fast, easy, and secure!</string>
     <string name="title_activity_onboarding" translatable="false">Onboarding activity</string>
     <string name="title_activity_explorer" translatable="false">File explorer activity</string>
     <string name="password">Password</string>
-    <string name="create_new_chest">Create a new chest</string>
+    <string name="create_new_chest">Create a new vault</string>
     <string name="go_back">Go back</string>
     <string name="pin_code">PIN code</string>
     <string name="wrong_credentials">Wrong credentials</string>
     <string name="vault_delete_success">The vault was successfully deleted</string>
     <string name="vault_delete_fail">We could not delete the vault</string>
     <string name="delete">Delete</string>
-    <string name="stage_3_encryption_level">Stage 3: When you put this app this app in background (i.e. when you go to your home screen, answer a call, lock your phone, etc.), the chest is going to be locked</string>
-    <string name="stage_2_encryption_level">Stage 2: If you have the app in the background (You are in another app or in your home screen), you will get a notification to close this chest, if you go back the chest would still be opened</string>
-    <string name="stage_1_encryption_level">Stage 1: The chest will be kept opened, without sending a notification asking you to close it</string>
+    <string name="stage_3_encryption_level">Stage 3: When you put this app in background (i.e. when you go to your home screen, answer a call, lock your phone, etc.), the vault is going to be locked</string>
+    <string name="stage_2_encryption_level">Stage 2: If you have the app in the background (You are in another app or in your home screen), you will get a notification to close this vault, if you go back the vault would still be opened</string>
+    <string name="stage_1_encryption_level">Stage 1: The vault will be kept opened, without sending a notification asking you to close it</string>
     <string name="vault_name">Vault name</string>
     <string name="no_vaults">No vaults</string>
     <string name="vault_name_empty_error">The vault name cannot be empty</string>
@@ -44,10 +44,10 @@
     <string name="name_reverse">Name (reverse)</string>
     <string name="random">Random</string>
     <string name="biometric">Biometric</string>
-    <string name="close_your_chest">Your chest is still opened</string>
+    <string name="close_your_chest">Your vault is still opened</string>
     <string name="click_to_close_chest">Click here to close it</string>
-    <string name="channel_name">Ask to close the chest</string>
-    <string name="channel_description">Sends the notification to ask you to close your opened chests</string>
+    <string name="channel_name">Ask to close the vault</string>
+    <string name="channel_description">Sends the notification to ask you to close your opened vaults</string>
     <string name="biometric_login">Biometric login</string>
     <string name="biometric_creation_subtitle">Log in to finish the creation of your vault</string>
     <string name="biometric_login_subtitle">Log in to open your vault</string>
@@ -86,7 +86,7 @@
     <string name="vault_import_title">Vault %1$s%2$s</string>
     <string name="vault_import_title_unlocked">" (unlocked)"</string>
     <string name="vault_import_title_locked">" (locked)"</string>
-    <string name="uri_authority" translatable="false">fr.theskyblockman.lifechest.encryptedfiles</string>
+    <string name="uri_authority" translatable="false">fr.theskyblockman.life_chest.encryptedfiles</string>
     <string name="select_all">Select all</string>
     <string name="invert_selection">Invert selection</string>
     <string name="cancel">Cancel</string>

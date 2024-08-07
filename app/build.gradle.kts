@@ -10,11 +10,11 @@ plugins {
 }
 
 android {
-    namespace = "fr.theskyblockman.lifechest"
+    namespace = "fr.theskyblockman.life_chest"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "fr.theskyblockman.lifechest"
+        applicationId = "fr.theskyblockman.life_chest"
         minSdk = 26
         targetSdk = 34
         versionCode = 10001
@@ -71,6 +71,7 @@ dependencies {
 
     implementation(libs.kotlinx.datetime)
     implementation(libs.androidx.core.ktx)
+    
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)

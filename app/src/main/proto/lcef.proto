@@ -2,7 +2,7 @@ syntax = "proto3";
 package transactions;
 
 option java_multiple_files = false;
-option java_package = "fr.theskyblockman.lifechest.transactions";
+option java_package = "fr.theskyblockman.life_chest.transactions";
 
 message FileMetadata {
   optional string name = 1;
