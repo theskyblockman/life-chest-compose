@@ -1,4 +1,5 @@
 [versions]
+coreSplashscreen = "1.2.0-alpha01"
 accompanistDrawablepainter = "0.35.1-alpha"
 agp = "8.7.0-alpha03"
 biometric = "1.2.0-alpha05"
@@ -29,6 +30,7 @@ zoomimageCompose = "1.1.0-alpha03"
 accompanist-drawablepainter = { module = "com.google.accompanist:accompanist-drawablepainter", version.ref = "accompanistDrawablepainter" }
 androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 androidx-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3Exoplayer" }
 androidx-media3-session = { module = "androidx.media3:media3-session", version.ref = "media3Exoplayer" }
 androidx-media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3Exoplayer" }

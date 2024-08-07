@@ -1,4 +1,5 @@
 # Life Chest
+###### Available under the MIT license
 
 A complete rewrite of my application Life Chest in Jetpack Compose with more features
 and better performance.

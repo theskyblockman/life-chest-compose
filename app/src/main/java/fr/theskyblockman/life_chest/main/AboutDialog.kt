@@ -42,7 +42,7 @@ fun AboutDialog(activity: Activity, onDismiss: () -> Unit) {
                 append(parts.first())
                 pushStringAnnotation(
                     tag = "link",
-                    annotation = "https://github.com/theskyblockman/life-chest/blob/master/LICENSE"
+                    annotation = "https://github.com/theskyblockman/life-chest-compose/blob/master/LICENSE"
                 )
                 withStyle(
                     style = SpanStyle(

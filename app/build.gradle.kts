@@ -17,8 +17,8 @@ android {
         applicationId = "fr.theskyblockman.life_chest"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10001
-        versionName = "1.0.1"
+        versionCode = 20000
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -71,10 +71,11 @@ dependencies {
 
     implementation(libs.kotlinx.datetime)
     implementation(libs.androidx.core.ktx)
-    
+
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
     implementation(libs.androidx.navigation.compose)
