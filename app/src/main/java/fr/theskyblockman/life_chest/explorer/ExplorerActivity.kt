@@ -5,9 +5,11 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.database.Cursor
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
@@ -66,8 +68,11 @@ import kotlinx.datetime.Instant
 import kotlinx.serialization.json.Json
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.FileNotFoundException
+import java.io.IOException
 import java.io.InputStream
 import javax.crypto.spec.SecretKeySpec
+
 
 class ExplorerViewModel : ViewModel() {
     private val vaultState: MutableStateFlow<Vault?> = MutableStateFlow(null)
@@ -336,6 +341,51 @@ class FileImportViewModel(private val application: Application) : AndroidViewMod
     val uiState = MutableStateFlow(FileImportsState())
     val uiStateFlow: StateFlow<FileImportsState> = uiState.asStateFlow()
 
+    private fun isVirtualFile(uri: Uri): Boolean {
+        if (!DocumentsContract.isDocumentUri(application, uri)) {
+            return false
+        }
+
+        val cursor: Cursor? = application.contentResolver.query(
+            uri,
+            arrayOf(DocumentsContract.Document.COLUMN_FLAGS),
+            null, null, null
+        )
+        if(cursor == null) {
+            return true
+        }
+
+        var flags = 0
+        if (cursor.moveToFirst()) {
+            flags = cursor.getInt(0)
+        }
+        cursor.close()
+        return (flags and DocumentsContract.Document.FLAG_VIRTUAL_DOCUMENT) != 0
+    }
+
+    @Throws(IOException::class)
+    private fun getInputStreamForVirtualFile(uri: Uri): InputStream {
+        val resolver: ContentResolver = application.contentResolver
+
+        val openableMimeTypes = resolver.getStreamTypes(uri, "*/*")
+
+        if (openableMimeTypes.isNullOrEmpty()) {
+            throw FileNotFoundException()
+        }
+
+        return resolver
+            .openTypedAssetFileDescriptor(uri, openableMimeTypes[0], null)!!
+            .createInputStream()
+    }
+
+    private fun openInputStreamForUri(uri: Uri): InputStream? {
+        return if(isVirtualFile(uri)) {
+            getInputStreamForVirtualFile(uri)
+        } else {
+            application.contentResolver.openInputStream(uri)
+        }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     fun moveFiles(
         lastResultCompleter: CompletableDeferred<List<Uri>>,
@@ -357,7 +407,7 @@ class FileImportViewModel(private val application: Application) : AndroidViewMod
                     val nonLcefFiles = mutableListOf<Uri>()
 
                     for (file in result) {
-                        application.contentResolver.openInputStream(file)!!.use { fis ->
+                        openInputStreamForUri(file)!!.use { fis ->
                             if (LcefManager.isLcef(fis)) {
                                 lcefFiles += file
                             } else {
@@ -377,7 +427,7 @@ class FileImportViewModel(private val application: Application) : AndroidViewMod
                     onLcefFiles(lcefFiles)
 
                     for (file in nonLcefFiles) {
-                        application.contentResolver.openInputStream(file)!!.use { fis ->
+                        openInputStreamForUri(file)!!.use { fis ->
                             val metadata = gatherData(file)
                             val thumbnail = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                                 createThumbnail(file, vault)

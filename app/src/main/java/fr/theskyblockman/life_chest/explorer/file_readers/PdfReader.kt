@@ -2,10 +2,13 @@ package fr.theskyblockman.life_chest.explorer.file_readers
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -16,11 +19,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
@@ -30,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
 import com.github.panpf.zoomimage.ZoomImage
 import com.github.panpf.zoomimage.compose.rememberZoomState
+import com.github.panpf.zoomimage.compose.zoom.Transform
 import fr.theskyblockman.life_chest.R
 import fr.theskyblockman.life_chest.explorer.ExplorerViewModel
 import fr.theskyblockman.life_chest.vault.EncryptedContentProvider
@@ -40,25 +49,31 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+fun Transform.toMatrix(): Matrix {
+    return Matrix().apply {
+        setScale(scaleX, scaleY)
+        setTranslate(offsetX, offsetY)
+    }
+}
+
 class PdfReader(override val node: FileNode) : FileReader {
     private var fd: ParcelFileDescriptor? = null
     private var renderer: PdfRenderer? = null
-    private var currentPageState = MutableStateFlow(0)
-    private val currentPage = currentPageState.asStateFlow()
+    private var currentPageStateId = MutableStateFlow(0)
+    private val currentPageId = currentPageStateId.asStateFlow()
 
     private fun setPage(page: Int) {
+        currentPageStateId.update {
+            page
+        }
         bitmapLoadedState.update {
             false
         }
-        currentPageState.update {
-            page
-        }
         try {
             renderer!!.openPage(page).use {
-                val loadedPage = it
                 val newBitmap = Bitmap.createBitmap(
-                    loadedPage.width,
-                    loadedPage.height,
+                    it.width,
+                    it.height,
                     Bitmap.Config.ARGB_8888
                 )
                 it.render(
@@ -89,7 +104,7 @@ class PdfReader(override val node: FileNode) : FileReader {
 
     @Composable
     override fun Reader(fullscreen: Boolean, setFullscreen: (isFullscreen: Boolean) -> Unit) {
-        val index by currentPage.collectAsState()
+        val index by currentPageId.collectAsState()
         val bitmapLoaded by this.bitmapLoaded.collectAsState()
         val bitmap by this.bitmap.collectAsState()
 
@@ -114,27 +129,27 @@ class PdfReader(override val node: FileNode) : FileReader {
 
         val zoomState = rememberZoomState()
 
-        ZoomImage(
-            zoomState = zoomState,
-            painter = BitmapPainter(bitmap!!.asImageBitmap()),
-            contentDescription = stringResource(R.string.image_alt_text, node.name),
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.FillWidth
-        )
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)) {
+            ZoomImage(
+                zoomState = zoomState,
+                painter = BitmapPainter(bitmap!!.asImageBitmap()),
+                contentDescription = stringResource(R.string.image_alt_text, node.name),
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.FillWidth
+            )
+        }
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun TopAppBar(name: String, pageIndex: Int, navController: NavController) {
-        val currentPage by currentPage.collectAsState()
+        val currentPageId by currentPageId.collectAsState()
 
         MediumTopAppBar(
             title = {
-                if (renderer == null) {
-                    Text(text = name)
-                } else {
-                    Text(text = "$name $currentPage/${renderer!!.pageCount - 1}")
-                }
+                Text(text = name)
             },
             navigationIcon = {
                 IconButton(onClick = { navController.popBackStack() }) {
@@ -152,7 +167,7 @@ class PdfReader(override val node: FileNode) : FileReader {
                             setPage(0)
                         }
                     },
-                    enabled = currentPage > 0
+                    enabled = currentPageId > 0
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.outline_first_page_24),
@@ -162,10 +177,10 @@ class PdfReader(override val node: FileNode) : FileReader {
                 IconButton(
                     onClick = {
                         scope.launch(Dispatchers.IO) {
-                            setPage(currentPage - 1)
+                            setPage(currentPageId - 1)
                         }
                     },
-                    enabled = currentPage > 0
+                    enabled = currentPageId > 0
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.outline_chevron_backward_24),
@@ -173,15 +188,15 @@ class PdfReader(override val node: FileNode) : FileReader {
                     )
                 }
 
-                Text(text = "$currentPage/${renderer!!.pageCount - 1}")
+                Text(text = "${currentPageId + 1}/${renderer?.pageCount ?: 1}")
 
                 IconButton(
                     onClick = {
                         scope.launch(Dispatchers.IO) {
-                            setPage(currentPage + 1)
+                            setPage(currentPageId + 1)
                         }
                     },
-                    enabled = currentPage < (renderer?.pageCount?.minus(1) ?: Int.MIN_VALUE)
+                    enabled = currentPageId < (renderer?.pageCount?.minus(1) ?: Int.MIN_VALUE)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.outline_chevron_forward_24),
@@ -194,7 +209,7 @@ class PdfReader(override val node: FileNode) : FileReader {
                             setPage(renderer!!.pageCount - 1)
                         }
                     },
-                    enabled = currentPage < (renderer?.pageCount?.minus(1) ?: Int.MIN_VALUE)
+                    enabled = renderer != null && currentPageId < renderer!!.pageCount - 1
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.outline_last_page_24),
