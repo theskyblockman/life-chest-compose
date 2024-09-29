@@ -592,7 +592,9 @@ fun ExplorerActivityNav(activity: ExplorerActivity, viewModel: ExplorerViewModel
     val vault by viewModel.vault.collectAsState()
 
     AppTheme {
-        NavHost(navController, startDestination = "explorer/{fileId}") {
+        val startDestination = "explorer/${vault!!.fileTree?.id ?: "root"}"
+        Log.d("Navigator", "startDestination = $startDestination")
+        NavHost(navController, startDestination = startDestination) {
             // path should be URL encoded
             composable(
                 "explorer/{fileId}", arguments = listOf(navArgument(
@@ -601,7 +603,7 @@ fun ExplorerActivityNav(activity: ExplorerActivity, viewModel: ExplorerViewModel
             ) { entry ->
                 val rawFileId = entry.arguments?.getString("fileId")
                 val fileId =
-                    rawFileId ?: vault!!.fileTree?.id
+                    if(rawFileId == null || rawFileId == "root") vault!!.fileTree?.id else rawFileId
 
                 Log.d("Explorer", "File ID = $fileId")
 

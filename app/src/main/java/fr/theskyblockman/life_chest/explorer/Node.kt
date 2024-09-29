@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -273,7 +274,8 @@ fun NodeTile(
                         text = node.name,
                         modifier = Modifier
                             .fillMaxWidth(0.75f)
-                            .padding(end = 1.dp),
+                            .padding(end = 1.dp)
+                            .basicMarquee(),
                         maxLines = 1,
                         overflow = TextOverflow.Clip,
                         textAlign = TextAlign.Center

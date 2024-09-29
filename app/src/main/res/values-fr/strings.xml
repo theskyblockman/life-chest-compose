@@ -3,7 +3,7 @@
     <string name="welcome_page_1_title">Bienvenue !</string>
     <string name="welcome_page_1_content">Bienvenue dans votre coffre-fort Life Chest ! Ici, vous pourrez créer des coffres pour stocker vos données en toute sécurité sans compromettre leur usabilité.</string>
     <string name="welcome_page_2_title">Votre sécurité est notre priorité</string>
-    <string name="welcome_page_2_content">Nous utilisons un système de chiffrement appelé Chacha20, ce qui signifie que toute tentative d\'accès à vos fichiers sans votre mot de passe prendrait environ 200 trillions de trillions de trillions de fois l\'âge de l\'univers ! Et pour le prouver, nous sommes 100 % open-source !</string>
+    <string name="welcome_page_2_content">Nous utilisons un système de chiffrement appelé AES, ce qui signifie que toute tentative d\'accès à vos fichiers sans votre mot de passe prendrait environ 200 trillions de trillions de trillions de fois l\'âge de l\'univers ! Et pour le prouver, nous sommes 100 % open-source !</string>
     <string name="welcome_page_3_title">Créons votre premier coffre-fort !</string>
     <string name="welcome_page_3_content">Vous verrez, c\'est rapide, facile et sécurisé !</string>
     <string name="password">Mot de passe</string>

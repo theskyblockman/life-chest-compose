@@ -258,7 +258,7 @@ fun FileReader(
         activity.showSystemUI()
     }
 
-    HorizontalPager(state = pagerState, outOfBoundsPageCount = 0) { pageIndex ->
+    HorizontalPager(state = pagerState, beyondViewportPageCount = 0) { pageIndex ->
         val page = files[pageIndex]
         val snackbarHostState = remember { SnackbarHostState() }
 

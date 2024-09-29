@@ -2,7 +2,6 @@ package fr.theskyblockman.life_chest.explorer.file_readers
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Matrix
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import android.util.Log
@@ -19,15 +18,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -38,7 +33,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
 import com.github.panpf.zoomimage.ZoomImage
 import com.github.panpf.zoomimage.compose.rememberZoomState
-import com.github.panpf.zoomimage.compose.zoom.Transform
 import fr.theskyblockman.life_chest.R
 import fr.theskyblockman.life_chest.explorer.ExplorerViewModel
 import fr.theskyblockman.life_chest.vault.EncryptedContentProvider
@@ -48,13 +42,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-fun Transform.toMatrix(): Matrix {
-    return Matrix().apply {
-        setScale(scaleX, scaleY)
-        setTranslate(offsetX, offsetY)
-    }
-}
 
 class PdfReader(override val node: FileNode) : FileReader {
     private var fd: ParcelFileDescriptor? = null
