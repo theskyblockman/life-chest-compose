@@ -193,7 +193,7 @@ fun NodeTile(
             ) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     var newName by remember {
-                        mutableStateOf(TextFieldValue(""))
+                        mutableStateOf(TextFieldValue(node.name))
                     }
                     Text(
                         stringResource(R.string.rename),

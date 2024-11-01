@@ -262,6 +262,7 @@ data class Vault(
                     setContentText(context.getString(R.string.click_to_close_chest))
                     priority = NotificationCompat.PRIORITY_HIGH
                     setContentIntent(pendingIntent)
+                    setOngoing(true)
                 }
 
                 NotificationManagerCompat.from(context).apply {

@@ -1,6 +1,7 @@
 package fr.theskyblockman.life_chest.explorer.file_readers
 
 import android.content.Context
+import android.util.Log
 import android.view.View
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
@@ -29,6 +30,7 @@ class VideoReader(override val node: FileNode) : FileReader {
     @OptIn(UnstableApi::class)
     @Composable
     override fun Reader(fullscreen: Boolean, setFullscreen: (isFullscreen: Boolean) -> Unit) {
+        Log.d("VideoReader", "Reading video reader")
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -59,14 +61,20 @@ class VideoReader(override val node: FileNode) : FileReader {
                     keepScreenOn = true
                 }
                 playerView!!
+            }, update = {
+                Log.d("VideoReader", "Updating video reader")
+                playerView?.setFullscreenButtonState(fullscreen)
             })
         }
+
     }
 
-    override suspend fun load(context: Context, explorerViewModel: ExplorerViewModel) {}
+    override suspend fun load(context: Context, explorerViewModel: ExplorerViewModel) {
+        Log.d("VideoReader", "Loading video reader")
+    }
 
     override fun unload() {
-        playerView?.visibility = View.GONE
+        playerView?.visibility = View.INVISIBLE
         player?.release()
     }
 

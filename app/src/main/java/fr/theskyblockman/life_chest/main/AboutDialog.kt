@@ -12,9 +12,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import com.google.android.gms.oss.licenses.OssLicensesMenuActivity
 import fr.theskyblockman.life_chest.R
@@ -44,22 +47,21 @@ fun AboutDialog(activity: Activity, onDismiss: () -> Unit) {
                     tag = "link",
                     annotation = "https://github.com/theskyblockman/life-chest-compose/blob/master/LICENSE"
                 )
-                withStyle(
-                    style = SpanStyle(
-                        color = MaterialTheme.colorScheme.primary,
-                        textDecoration = TextDecoration.Underline
-                    )
-                ) {
+                withLink(LinkAnnotation.Url("https://github.com/theskyblockman/life-chest-compose/blob/master/LICENSE", TextLinkStyles(style = SpanStyle(
+                    color = MaterialTheme.colorScheme.primary,
+                    textDecoration = TextDecoration.Underline
+                )))) {
                     append(stringResource(R.string.mit_license_link_name))
                 }
                 pop()
                 append(parts.last())
             }
-            ClickableText(text) {
-                text.getStringAnnotations("link", it, it).firstOrNull()?.let { stringAnnotation ->
-                    uriHandler.openUri(stringAnnotation.item)
-                }
-            }
+            Text(text, )
+//            ClickableText(text) {
+//                text.getStringAnnotations("link", it, it).firstOrNull()?.let { stringAnnotation ->
+//                    uriHandler.openUri(stringAnnotation.item)
+//                }
+//            }
         },
         onDismissRequest = onDismiss,
         dismissButton = {

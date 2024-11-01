@@ -46,8 +46,6 @@ class MainActivity : FragmentActivity() {
             startActivity(intent)
         }
 
-        DynamicColors.applyToActivitiesIfAvailable(application)
-
         val vaultsViewModel: VaultsViewModel by viewModels()
         vaultsViewModel.updateLoadedVaults()
 
