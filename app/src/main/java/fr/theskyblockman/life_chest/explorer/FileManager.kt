@@ -174,7 +174,7 @@ data class PageData(
     val isError: Boolean = false,
 )
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileReader(
     files: List<TreeNode>,

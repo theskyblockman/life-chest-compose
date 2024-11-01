@@ -182,7 +182,7 @@ object Crypto {
             return bytes(bytes, key, iv).decodeToString()
         }
 
-        fun bytes(
+        private fun bytes(
             bytes: ByteArray,
             key: SecretKeySpec,
             iv: IvParameterSpec

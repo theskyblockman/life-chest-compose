@@ -1,6 +1,5 @@
 package fr.theskyblockman.life_chest.explorer.file_readers
 
-import android.content.Context
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -15,7 +14,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import fr.theskyblockman.life_chest.BuildConfig
 import fr.theskyblockman.life_chest.R
-import fr.theskyblockman.life_chest.explorer.ExplorerViewModel
 import fr.theskyblockman.life_chest.vault.TreeNode
 
 class DirectoryReader(override val node: TreeNode) : FileReader {
@@ -75,13 +73,5 @@ class DirectoryReader(override val node: TreeNode) : FileReader {
                 }
             }
         )
-    }
-
-    override suspend fun load(context: Context, explorerViewModel: ExplorerViewModel) {
-        return
-    }
-
-    override fun unload() {
-        return
     }
 }

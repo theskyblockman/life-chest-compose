@@ -53,7 +53,7 @@ interface FileReader {
 
     fun unfocused() {}
 
-    suspend fun load(context: Context, explorerViewModel: ExplorerViewModel)
+    suspend fun load(context: Context, explorerViewModel: ExplorerViewModel) {}
 
-    fun unload()
+    fun unload() {}
 }

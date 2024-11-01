@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.util.Log
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.biometric.BiometricPrompt.PromptInfo
@@ -78,7 +79,7 @@ class Biometric : UnlockMechanism() {
                     KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
                 ).setBlockModes(KeyProperties.BLOCK_MODE_CBC)
                     .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_PKCS7)
-                    .setUserAuthenticationRequired(true)
+                    .setUserAuthenticationRequired(false)
                     .setInvalidatedByBiometricEnrollment(false)
                     .build()
             )
@@ -93,6 +94,7 @@ class Biometric : UnlockMechanism() {
                 context as FragmentActivity,
                 object : BiometricPrompt.AuthenticationCallback() {
                     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                        Log.d("Biometric", "Authenticated via ${result.authenticationType}")
                         val key = ByteArray(16)
                         SecureRandom().nextBytes(key)
                         val encryptedInfo = result.cryptoObject?.cipher?.doFinal(
@@ -108,7 +110,7 @@ class Biometric : UnlockMechanism() {
                         value.complete(SecretKeySpec(key, Crypto.DEFAULT_CIPHER_NAME))
                     }
 
-                    override fun onAuthenticationFailed() {
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                         value.complete(null)
                     }
                 })

@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">Life Chest</string>
     <string name="welcome_page_1_title">Hello there!</string>
     <string name="welcome_page_1_content">Welcome to your Life Chest! Here, you will be able to create vaults to store your data securely without compromising usability.</string>
@@ -28,9 +28,9 @@
     <string name="more">More</string>
     <string name="new_directory">Create new directory…</string>
     <string name="file_amount">%1$d files</string>
-    <string name="current_page">Page %1$d</string>
+    <string name="current_page" tools:keep="@string/current_page">Page %1$d</string>
     <string name="could_not_load_page">Could not load page %1$d</string>
-    <string name="could_not_load_pdf">Could not load the PDF file. Is it corrupted?</string>
+    <string name="could_not_load_pdf" tools:keep="@string/could_not_load_pdf">Could not load the PDF file. Is it corrupted?</string>
     <string name="selected_files">Selected %1$d files</string>
     <string name="exit_selection_mode">Exit selection mode</string>
     <string name="delete_selection">Delete selected</string>
