@@ -19,7 +19,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.google.android.material.color.DynamicColors
 import fr.theskyblockman.life_chest.main.EditVaultPage
 import fr.theskyblockman.life_chest.main.MainPage
 import fr.theskyblockman.life_chest.main.NewVaultPage

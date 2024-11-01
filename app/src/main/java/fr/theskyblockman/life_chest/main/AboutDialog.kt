@@ -2,14 +2,12 @@ package fr.theskyblockman.life_chest.main
 
 import android.app.Activity
 import android.content.Intent
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
@@ -18,7 +16,6 @@ import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
-import androidx.compose.ui.text.withStyle
 import com.google.android.gms.oss.licenses.OssLicensesMenuActivity
 import fr.theskyblockman.life_chest.R
 
@@ -35,7 +32,6 @@ fun AboutDialog(activity: Activity, onDismiss: () -> Unit) {
             Text(text = stringResource(id = R.string.app_name))
         },
         text = {
-            val uriHandler = LocalUriHandler.current
             val text = buildAnnotatedString {
                 pushStyle(style = SpanStyle(
                     color = MaterialTheme.colorScheme.onSurface,
@@ -56,12 +52,8 @@ fun AboutDialog(activity: Activity, onDismiss: () -> Unit) {
                 pop()
                 append(parts.last())
             }
-            Text(text, )
-//            ClickableText(text) {
-//                text.getStringAnnotations("link", it, it).firstOrNull()?.let { stringAnnotation ->
-//                    uriHandler.openUri(stringAnnotation.item)
-//                }
-//            }
+
+            Text(text)
         },
         onDismissRequest = onDismiss,
         dismissButton = {
