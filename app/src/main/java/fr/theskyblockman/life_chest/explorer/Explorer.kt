@@ -454,6 +454,7 @@ fun Explorer(
                     innerPadding = innerPadding,
                     selectedElements = selectedElements,
                     explorerViewModel = explorerViewModel,
+                    snackbarHostState = snackbarHostState,
                     onNodeTileClick = { node ->
                         if (selectedElements.isEmpty()) {
                             when (node) {
@@ -510,6 +511,7 @@ fun ExplorerContent(
     innerPadding: PaddingValues,
     selectedElements: Set<String>,
     explorerViewModel: ExplorerViewModel,
+    snackbarHostState: SnackbarHostState,
     onNodeTileClick: (TreeNode) -> Unit,
     onNodeTileLongClick: (TreeNode) -> Unit,
     setSelected: (TreeNode, isSelected: Boolean) -> Unit,
@@ -530,6 +532,8 @@ fun ExplorerContent(
                     node = node,
                     isGridView = true,
                     selected = selectedElements.contains(node.id),
+                    explorerViewModel = explorerViewModel,
+                    snackbarHostState = snackbarHostState,
                     onClick = {
                         onNodeTileClick(node)
                     },
@@ -539,8 +543,7 @@ fun ExplorerContent(
                     setSelected = {
                         setSelected(node, it)
                     },
-                    reloadFiles = reloadFiles,
-                    explorerViewModel = explorerViewModel
+                    reloadFiles = reloadFiles
                 )
             }
         }
@@ -563,7 +566,8 @@ fun ExplorerContent(
                         setSelected(node, it)
                     },
                     reloadFiles = reloadFiles,
-                    explorerViewModel = explorerViewModel
+                    explorerViewModel = explorerViewModel,
+                    snackbarHostState = snackbarHostState
                 )
             }
         }

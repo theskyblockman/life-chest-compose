@@ -9,6 +9,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +37,8 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +48,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,7 +75,9 @@ import fr.theskyblockman.life_chest.vault.EncryptedContentProvider
 import fr.theskyblockman.life_chest.vault.EncryptedFile
 import fr.theskyblockman.life_chest.vault.FileNode
 import fr.theskyblockman.life_chest.vault.TreeNode
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 
@@ -100,6 +106,7 @@ private fun NodeTilePreview() {
                 isGridView = true,
                 selected = false,
                 explorerViewModel = ExplorerViewModel(),
+                snackbarHostState = remember { SnackbarHostState() },
                 onClick = {},
                 onLongClick = {},
                 reloadFiles = {}
@@ -124,6 +131,7 @@ private fun NodeTilePreview() {
                 ),
                 explorerViewModel = ExplorerViewModel(),
                 setSelected = {},
+                snackbarHostState = remember { SnackbarHostState() },
                 isGridView = true,
                 selected = false,
                 onClick = {},
@@ -141,6 +149,7 @@ fun NodeTile(
     isGridView: Boolean,
     selected: Boolean,
     explorerViewModel: ExplorerViewModel,
+    snackbarHostState: SnackbarHostState,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     setSelected: (isSelected: Boolean) -> Unit,
@@ -153,6 +162,7 @@ fun NodeTile(
         mutableStateOf(false)
     }
     val vault by explorerViewModel.vault.collectAsState()
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         if (node.attachedThumbnail == null) {
@@ -297,6 +307,8 @@ fun NodeTile(
                             expended = expanded,
                             isSelected = selected,
                             explorerViewModel = explorerViewModel,
+                            snackbarHostState = snackbarHostState,
+                            scope = scope,
                             dismiss = { expanded = false },
                             setSelected = setSelected,
                             reloadFiles = reloadFiles,
@@ -334,7 +346,6 @@ fun NodeTile(
                 }
             }
         }
-
     } else {
         Surface(
             modifier = Modifier.combinedClickable(
@@ -375,6 +386,8 @@ fun NodeTile(
                             setSelected = setSelected,
                             reloadFiles = reloadFiles,
                             explorerViewModel = explorerViewModel,
+                            scope = scope,
+                            snackbarHostState = snackbarHostState,
                             onRename = {
                                 renameDialogExpanded = true
                             }
@@ -426,6 +439,8 @@ fun NodeActionMenu(
     expended: Boolean,
     isSelected: Boolean,
     explorerViewModel: ExplorerViewModel,
+    snackbarHostState: SnackbarHostState,
+    scope: CoroutineScope,
     dismiss: () -> Unit,
     onRename: () -> Unit,
     setSelected: (isSelected: Boolean) -> Unit,
@@ -433,6 +448,52 @@ fun NodeActionMenu(
 ) {
     val context = LocalContext.current
     val vault by explorerViewModel.vault.collectAsState()
+
+    fun share() {
+        explorerViewModel.setBypassChestClosure(true)
+        if (node is FileNode) {
+            val sendIntent = Intent().apply {
+                action = Intent.ACTION_SEND
+                val createdUri = EncryptedContentProvider.getUriFromFile(node)
+                clipData = ClipData.newRawUri(node.name, createdUri)
+                putExtra(Intent.EXTRA_STREAM, createdUri)
+                type = node.type
+            }
+
+            sendIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+            dismiss()
+
+            context.startActivity(
+                Intent.createChooser(sendIntent, null),
+                null
+            )
+        } else if (node is DirectoryNode) {
+            val files = node.listFiles()
+            val uris = ArrayList<Uri>()
+            for (file in files) {
+                uris.add(EncryptedContentProvider.getUriFromFile(file))
+            }
+            val sendIntent = Intent().apply {
+                action = Intent.ACTION_SEND_MULTIPLE
+                putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                type = "*/*"
+                clipData = ClipData.newPlainText(
+                    context.getString(R.string.file_amount, files.size),
+                    context.getString(R.string.file_amount, files.size)
+                )
+            }
+
+            sendIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+            dismiss()
+
+            context.startActivity(
+                Intent.createChooser(sendIntent, null),
+                null
+            )
+        }
+    }
 
     DropdownMenu(modifier = modifier, expanded = expended, onDismissRequest = { dismiss() }) {
         DropdownMenuItem(
@@ -461,7 +522,34 @@ fun NodeActionMenu(
                     context.startActivity(intent)
                 })
             DropdownMenuItem(
-                text = { Text(text = stringResource(id = R.string.export)) },
+                text = {
+                    val authenticationMethodDisplayName = vault!!.currentMechanism.displayName
+                    val optionalModifier = Modifier
+                        .clickable(interactionSource = null, indication = null) {
+                            dismiss()
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = context.getString(
+                                        R.string.authentication_method_not_supported,
+                                        authenticationMethodDisplayName
+                                    ), actionLabel = context.getString(R.string.share),
+                                )
+                                when(result) {
+                                    SnackbarResult.ActionPerformed -> {
+                                        share()
+                                    }
+
+                                    else -> {
+                                        Log.d("Explorer", "User dismissed snackbar coming from export attempt")
+                                    }
+                                }
+                            }
+                        }
+                        .fillMaxSize()
+
+                    Box(modifier = if(!vault!!.currentMechanism.supportsExport) optionalModifier else Modifier) {
+                        Text(text = stringResource(id = R.string.export))
+                    } },
                 enabled = vault!!.currentMechanism.supportsExport,
                 onClick = {
                     val activity = context as ExplorerActivity
@@ -479,49 +567,7 @@ fun NodeActionMenu(
             reloadFiles()
         })
         DropdownMenuItem(text = { Text(text = stringResource(id = R.string.share)) }, onClick = {
-            explorerViewModel.setBypassChestClosure(true)
-            if (node is FileNode) {
-                val sendIntent = Intent().apply {
-                    action = Intent.ACTION_SEND
-                    val createdUri = EncryptedContentProvider.getUriFromFile(node)
-                    clipData = ClipData.newRawUri(node.name, createdUri)
-                    putExtra(Intent.EXTRA_STREAM, createdUri)
-                    type = node.type
-                }
-
-                sendIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-
-                dismiss()
-
-                context.startActivity(
-                    Intent.createChooser(sendIntent, null),
-                    null
-                )
-            } else if (node is DirectoryNode) {
-                val files = node.listFiles()
-                val uris = ArrayList<Uri>()
-                for (file in files) {
-                    uris.add(EncryptedContentProvider.getUriFromFile(file))
-                }
-                val sendIntent = Intent().apply {
-                    action = Intent.ACTION_SEND_MULTIPLE
-                    putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
-                    type = "*/*"
-                    clipData = ClipData.newPlainText(
-                        context.getString(R.string.file_amount, files.size),
-                        context.getString(R.string.file_amount, files.size)
-                    )
-                }
-
-                sendIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-
-                dismiss()
-
-                context.startActivity(
-                    Intent.createChooser(sendIntent, null),
-                    null
-                )
-            }
+            share()
         })
     }
 }

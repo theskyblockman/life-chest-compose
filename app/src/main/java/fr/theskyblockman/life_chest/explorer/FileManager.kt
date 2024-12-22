@@ -2,7 +2,6 @@ package fr.theskyblockman.life_chest.explorer
 
 import android.content.Context
 import android.util.Log
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
