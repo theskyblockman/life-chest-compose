@@ -141,8 +141,12 @@ class Biometric : UnlockMechanism() {
         val manager = BiometricManager.from(context)
 
         return manager.canAuthenticate(
-            BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                    BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                BiometricManager.Authenticators.BIOMETRIC_STRONG
+            } else {
+                BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                        BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            }
         ) == BiometricManager.BIOMETRIC_SUCCESS
     }
 
